@@ -3,4 +3,7 @@
   <string name="FlatGramInterfaceSettings">界面</string>
   <string name="FlatGramSettingsTagline">静待希望开花</string>
   <string name="FlatGramInterfaceSettingsEmpty">FlatGram 界面设置</string>
+  <string name="FlatGramHomeTopBar">顶栏样式</string>
+  <string name="FlatGramHomeTopBarDefault">原版</string>
+  <string name="FlatGramHomeTopBarFlatGram">FlatGram 样式</string>
 </resources>

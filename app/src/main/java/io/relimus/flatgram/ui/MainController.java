@@ -98,7 +98,9 @@ import io.relimus.flatgram.sync.SyncAdapter;
 import io.relimus.flatgram.telegram.ChatFilter;
 import io.relimus.flatgram.telegram.ChatFolderStyle;
 import io.relimus.flatgram.telegram.ChatFoldersListener;
+import io.relimus.flatgram.telegram.ConnectionState;
 import io.relimus.flatgram.telegram.CounterChangeListener;
+import io.relimus.flatgram.telegram.GlobalConnectionListener;
 import io.relimus.flatgram.telegram.GlobalCountersListener;
 import io.relimus.flatgram.telegram.Tdlib;
 import io.relimus.flatgram.telegram.TdlibCounter;
@@ -162,7 +164,7 @@ import tgx.td.ChatPosition;
 import tgx.td.Td;
 import tgx.td.TdConstants;
 
-public class MainController extends ViewPagerController<Void> implements Menu, MoreDelegate, OverlayButtonWrap.Callback, TdlibOptionListener, AppUpdater.Listener, ChatFoldersListener, GlobalCountersListener, Settings.ChatFolderSettingsListener {
+public class MainController extends ViewPagerController<Void> implements Menu, MoreDelegate, OverlayButtonWrap.Callback, TdlibOptionListener, AppUpdater.Listener, ChatFoldersListener, GlobalCountersListener, GlobalConnectionListener, Settings.ChatFolderSettingsListener {
   private static final long MAIN_PAGER_ITEM_ID = Long.MIN_VALUE;
   private static final long ARCHIVE_PAGER_ITEM_ID = Long.MIN_VALUE + 1;
   private static final long INVALID_PAGER_ITEM_ID = Long.MAX_VALUE;
@@ -272,6 +274,7 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
     tdlib.wallpaper().ensureWallpaperAvailability();
     tdlib.listeners().addOptionsListener(this);
     tdlib.listeners().subscribeToChatFoldersUpdates(this);
+    TdlibManager.instance().global().addConnectionListener(this);
     tdlib.context().global().addCountersListener(this);
     Settings.instance().addChatFolderSettingsListener(this);
     if (Settings.instance().chatFoldersEnabled()) {
@@ -282,6 +285,7 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
     }
 
     prepareControllerForPosition(0, this::executeScheduledAnimation);
+    checkFlatGramHomeTopBarMode();
 
     if (headerCell != null) {
       headerCell.getTopView().setOnSlideOffListener(new ViewPagerTopView.OnSlideOffListener() {
@@ -380,6 +384,11 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
 
   @Override
   public CharSequence getName () {
+    if (Settings.instance().useFlatGramHomeTopBar()) {
+      return tdlib.connectionState() == ConnectionState.CONNECTED ?
+        Lang.getString(R.string.AppName) :
+        tdlib.connectionStateText();
+    }
     if (useGlobalFilter()) {
       return Lang.getString(getGlobalFilterName(globalFilter));
     }
@@ -390,6 +399,9 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
 
   @Override
   public View getCustomHeaderCell () {
+    if (Settings.instance().useFlatGramHomeTopBar()) {
+      return null;
+    }
     if (displayTabsAtBottom()) {
       if (useGlobalFilter()) {
         if (toggleHeaderView == null) {
@@ -788,7 +800,7 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
 
   @Override
   protected boolean useCenteredTitle () {
-    return true;
+    return !Settings.instance().useFlatGramHomeTopBar();
   }
 
   // Search
@@ -1125,6 +1137,7 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
     tdlib.listeners().removeOptionListener(this);
     context().appUpdater().removeListener(this);
     tdlib.context().global().removeCountersListener(this);
+    TdlibManager.instance().global().removeConnectionListener(this);
     Settings.instance().removeChatFolderSettingsListener(this);
     tdlib.listeners().unsubscribeFromChatFoldersUpdates(this);
     if (chatListUnreadCountListener != null) {
@@ -1139,6 +1152,39 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
     if (chatListPositionListener != null) {
       tdlib.settings().removeChatListPositionListener(chatListPositionListener);
       chatListPositionListener = null;
+    }
+  }
+
+  @Override
+  public void onConnectionStateChanged (Tdlib tdlib, @ConnectionState int newState, boolean isCurrent) {
+    if (isCurrent) {
+      updateFlatGramHomeTopBarTitle();
+    }
+  }
+
+  @Override
+  public void onConnectionDisplayStatusChanged (Tdlib tdlib, boolean isCurrent) {
+    if (isCurrent) {
+      updateFlatGramHomeTopBarTitle();
+    }
+  }
+
+  private void checkFlatGramHomeTopBarMode () {
+    UI.getContext(context).checkNetworkStatusBar();
+    if (Settings.instance().useFlatGramHomeTopBar()) {
+      if (getCurrentPagerItemPosition() != POSITION_CHATS) {
+        setCurrentPagerPosition(POSITION_CHATS, false);
+      }
+      getViewPager().setPagingEnabled(false);
+    } else {
+      getViewPager().setPagingEnabled(true);
+    }
+    updateFlatGramHomeTopBarTitle();
+  }
+
+  private void updateFlatGramHomeTopBarTitle () {
+    if (Settings.instance().useFlatGramHomeTopBar() && headerView != null && isFocused() && !inTransformMode()) {
+      headerView.setTitle(this);
     }
   }
 
@@ -1296,6 +1342,7 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
   @Override
   public void onFocus () {
     super.onFocus();
+    checkFlatGramHomeTopBarMode();
     // FIXME check tdlib.isUnauthorized()
     tdlib.context().changePreferredAccountId(tdlib.id(), TdlibManager.SWITCH_REASON_NAVIGATION);
     if (UI.TEST_MODE == UI.TEST_MODE_USER) {
@@ -1309,6 +1356,12 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
         }
       })
     ));
+  }
+
+  @Override
+  public void onLeaveSelectMode () {
+    super.onLeaveSelectMode();
+    checkFlatGramHomeTopBarMode();
   }
 
   @Override

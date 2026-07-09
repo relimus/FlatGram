@@ -178,6 +178,11 @@ public class NetworkStatusBarView extends FrameLayoutFix implements Destroyable,
     list.addThemeColorListener(progressView, Config.STATUS_BAR_TEXT_COLOR_ID);
   }
 
+  public void removeThemeListeners (ThemeListenerList list) {
+    list.removeThemeListenerByTarget(textView);
+    list.removeThemeListenerByTarget(progressView);
+  }
+
   public void updateDirection () {
     statusWrap.removeView(textView);
     statusWrap.removeView(progressView);

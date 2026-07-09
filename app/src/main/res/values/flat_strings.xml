@@ -3,4 +3,7 @@
   <string name="FlatGramInterfaceSettings">Interface</string>
   <string name="FlatGramSettingsTagline">Wait for hope to bloom.</string>
   <string name="FlatGramInterfaceSettingsEmpty">FlatGram interface settings will be added here.</string>
+  <string name="FlatGramHomeTopBar">Topbar style</string>
+  <string name="FlatGramHomeTopBarDefault">Original</string>
+  <string name="FlatGramHomeTopBarFlatGram">FlatGram style</string>
 </resources>

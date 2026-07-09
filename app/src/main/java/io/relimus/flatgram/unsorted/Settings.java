@@ -236,6 +236,7 @@ public class Settings {
   private static final String KEY_TUTORIAL_PSA = "settings_tutorial_psa";
   private static final String KEY_CHAT_FONT_SIZE = "settings_font_size";
   private static final String KEY_CHAT_LIST_MODE = "settings_chat_list_mode";
+  private static final String KEY_FLATGRAM_HOME_TOP_BAR_MODE = "flatgram_home_top_bar_mode";
   private static final String KEY_CHAT_TRANSLATE_MODE = "settings_chat_translate_mode";
   private static final String KEY_CHAT_DO_NOT_TRANSLATE_MODE = "settings_chat_do_not_translate_mode";
   private static final String KEY_CHAT_DO_NOT_TRANSLATE_LIST = "settings_chat_do_not_translate_list";
@@ -1276,6 +1277,33 @@ public class Settings {
         }
       }
     }
+  }
+
+  public static final int FLATGRAM_HOME_TOP_BAR_MODE_DEFAULT = 0;
+  public static final int FLATGRAM_HOME_TOP_BAR_MODE_FLATGRAM = 1;
+
+  private Integer _flatGramHomeTopBarMode;
+
+  public int getFlatGramHomeTopBarMode () {
+    if (_flatGramHomeTopBarMode == null) {
+      _flatGramHomeTopBarMode = pmc.getInt(KEY_FLATGRAM_HOME_TOP_BAR_MODE, FLATGRAM_HOME_TOP_BAR_MODE_DEFAULT);
+    }
+    return _flatGramHomeTopBarMode;
+  }
+
+  public void setFlatGramHomeTopBarMode (int mode) {
+    if (getFlatGramHomeTopBarMode() != mode) {
+      if (mode == FLATGRAM_HOME_TOP_BAR_MODE_DEFAULT) {
+        pmc.remove(KEY_FLATGRAM_HOME_TOP_BAR_MODE);
+      } else {
+        pmc.putInt(KEY_FLATGRAM_HOME_TOP_BAR_MODE, mode);
+      }
+      _flatGramHomeTopBarMode = mode;
+    }
+  }
+
+  public boolean useFlatGramHomeTopBar () {
+    return getFlatGramHomeTopBarMode() == FLATGRAM_HOME_TOP_BAR_MODE_FLATGRAM;
   }
 
 

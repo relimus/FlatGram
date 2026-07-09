@@ -5,4 +5,7 @@
 
   <item type="id" name="btn_flatGramSettings" />
   <item type="id" name="btn_flatGramInterfaceSettings" />
+  <item type="id" name="btn_flatGramHomeTopBar" />
+  <item type="id" name="btn_flatGramHomeTopBarDefault" />
+  <item type="id" name="btn_flatGramHomeTopBarFlatGram" />
 </resources>

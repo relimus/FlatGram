@@ -548,11 +548,7 @@ public abstract class BaseActivity extends FragmentActivity implements View.OnTo
       setDarkness(darkness);
     }*/
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      statusBar = new NetworkStatusBarView(this);
-      statusBar.addThemeListeners(themeList);
-      rootView.addView(statusBar);
-    }
+    checkNetworkStatusBar();
 
     setContentView(rootView);
 
@@ -844,6 +840,24 @@ public abstract class BaseActivity extends FragmentActivity implements View.OnTo
   // Window flags & status bar
 
   protected @Nullable NetworkStatusBarView statusBar;
+
+  public void checkNetworkStatusBar () {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || rootView == null) {
+      return;
+    }
+    if (Settings.instance().useFlatGramHomeTopBar()) {
+      if (statusBar != null) {
+        statusBar.performDestroy();
+        statusBar.removeThemeListeners(themeList);
+        rootView.removeView(statusBar);
+        statusBar = null;
+      }
+    } else if (statusBar == null) {
+      statusBar = new NetworkStatusBarView(this);
+      statusBar.addThemeListeners(themeList);
+      rootView.addView(statusBar);
+    }
+  }
 
   public final void setWindowFlags (int flags, int mask) {
     getWindow().setFlags(flags, mask);
