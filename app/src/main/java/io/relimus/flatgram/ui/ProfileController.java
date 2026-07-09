@@ -1782,7 +1782,7 @@ public class ProfileController extends ViewController<ProfileController.Args> im
           view.setData(R.string.PictureAndText);
         } else if (itemId == R.id.btn_peer_id) {
           view.setName(getPeerTypeStringResourceId());
-          view.setData(Strings.buildCounter(getPeerId()));
+          view.setData(Long.toString(getPeerId()));
         } else if (itemId == R.id.btn_birthdate) {
           view.setData(R.string.Birthdate);
           TdApi.Birthdate birthdate = userFull != null ? userFull.birthdate : null;
