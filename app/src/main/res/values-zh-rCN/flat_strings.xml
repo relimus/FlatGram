@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="FlatGramInterfaceSettings">界面</string>
+  <string name="FlatGramSettingsTagline">静待希望开花</string>
+  <string name="FlatGramInterfaceSettingsEmpty">FlatGram 界面设置</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <item type="id" name="controller_flatGramSettings" />
+  <item type="id" name="controller_flatGramInterfaceSettings" />
+
+  <item type="id" name="btn_flatGramSettings" />
+  <item type="id" name="btn_flatGramInterfaceSettings" />
+</resources>

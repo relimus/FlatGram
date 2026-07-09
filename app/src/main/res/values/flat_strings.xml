@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="FlatGramInterfaceSettings">Interface</string>
+  <string name="FlatGramSettingsTagline">Wait for hope to bloom.</string>
+  <string name="FlatGramInterfaceSettingsEmpty">FlatGram interface settings will be added here.</string>
+</resources>

@@ -444,6 +444,8 @@ public class SettingsController extends ViewController<Void> implements
           hasError = hasNotificationError;
         } else if (itemId == R.id.btn_devices) {
           hasError = sessions != null && sessions.incompleteLoginAttempts.length > 0;
+        } else if (itemId == R.id.btn_flatGramSettings) {
+          view.setData(R.string.FlatGramSettingsTagline);
         }
         view.setUnreadCounter(hasError ? Tdlib.CHAT_FAILED : 0, false, isUpdate);
         if (itemId == R.id.btn_sourceCode) {
@@ -600,6 +602,11 @@ public class SettingsController extends ViewController<Void> implements
     }
     items.add(new ListItem(ListItem.TYPE_SEPARATOR));
     items.add(new ListItem(ListItem.TYPE_INFO_MULTILINE, R.id.btn_bio, R.drawable.baseline_info_24, R.string.UserBio).setContentStrings(R.string.LoadingInformation, R.string.BioNone));
+    items.add(new ListItem(ListItem.TYPE_SHADOW_BOTTOM));
+
+    items.add(new ListItem(ListItem.TYPE_SHADOW_TOP));
+    items.add(new ListItem(ListItem.TYPE_VALUED_SETTING,
+      R.id.btn_flatGramSettings, R.drawable.baseline_settings_24, R.string.AppName));
     items.add(new ListItem(ListItem.TYPE_SHADOW_BOTTOM));
 
     TdApi.SuggestedAction[] actions = tdlib.getSuggestedActions();
@@ -1201,6 +1208,8 @@ public class SettingsController extends ViewController<Void> implements
       }
     } else if (viewId == R.id.btn_copyDebug) {
       UI.copyText(U.getUsefulMetadata(tdlib), R.string.CopiedText);
+    } else if (viewId == R.id.btn_flatGramSettings) {
+      navigateTo(new SettingsFlatGramController(context, tdlib));
     } else if (viewId == R.id.btn_themeSettings) {
       navigateTo(new SettingsThemeController(context, tdlib));
     } else if (viewId == R.id.btn_tweakSettings) {
