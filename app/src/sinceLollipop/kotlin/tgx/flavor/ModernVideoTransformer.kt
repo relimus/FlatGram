@@ -9,8 +9,8 @@ import android.os.Build
 import androidx.core.net.toUri
 import kotlinx.coroutines.Runnable
 import me.vkryl.core.lambda.RunnableData
-import org.thunderdog.challegram.filegen.VideoGen
-import org.thunderdog.challegram.filegen.VideoGenerationInfo
+import io.relimus.flatgram.filegen.VideoGen
+import io.relimus.flatgram.filegen.VideoGenerationInfo
 
 fun setLegacyTranscoderLogLevel(ignored: Int) {
   // Intentionally do nothing

@@ -2,7 +2,7 @@ package tgx.app
 
 import android.app.Application
 import com.google.android.recaptcha.RecaptchaTasksClient
-import org.thunderdog.challegram.telegram.Tdlib
+import io.relimus.flatgram.telegram.Tdlib
 import tgx.flavor.getRecaptchaTasksClient
 
 private typealias Callback = (RecaptchaTasksClient?, Exception?) -> Unit

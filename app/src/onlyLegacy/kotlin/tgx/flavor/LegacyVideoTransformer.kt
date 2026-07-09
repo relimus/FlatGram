@@ -19,11 +19,11 @@ import com.otaliastudios.transcoder.source.UriDataSource
 import com.otaliastudios.transcoder.strategy.*
 import kotlinx.coroutines.Runnable
 import me.vkryl.core.lambda.RunnableData
-import org.thunderdog.challegram.Log
-import org.thunderdog.challegram.U
-import org.thunderdog.challegram.filegen.VideoGen
-import org.thunderdog.challegram.filegen.VideoGenerationInfo
-import org.thunderdog.challegram.unsorted.Settings
+import io.relimus.flatgram.Log
+import io.relimus.flatgram.U
+import io.relimus.flatgram.filegen.VideoGen
+import io.relimus.flatgram.filegen.VideoGenerationInfo
+import io.relimus.flatgram.unsorted.Settings
 import java.io.File
 
 @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2)

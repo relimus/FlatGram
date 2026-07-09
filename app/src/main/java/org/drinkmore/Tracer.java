@@ -19,13 +19,13 @@ import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
 
 import org.drinkless.tdlib.TdApi;
-import org.thunderdog.challegram.Log;
-import org.thunderdog.challegram.N;
-import org.thunderdog.challegram.data.TD;
-import org.thunderdog.challegram.telegram.Tdlib;
-import org.thunderdog.challegram.telegram.TdlibAccount;
-import org.thunderdog.challegram.unsorted.Settings;
-import org.thunderdog.challegram.util.Crash;
+import io.relimus.flatgram.Log;
+import io.relimus.flatgram.N;
+import io.relimus.flatgram.data.TD;
+import io.relimus.flatgram.telegram.Tdlib;
+import io.relimus.flatgram.telegram.TdlibAccount;
+import io.relimus.flatgram.unsorted.Settings;
+import io.relimus.flatgram.util.Crash;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

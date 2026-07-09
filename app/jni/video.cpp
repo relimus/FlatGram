@@ -15,14 +15,14 @@
 #include "videocontext.h"
 
 // JNI wrappers
-// void Java_org_thunderdog_challegram_N_nativeInit
+// void Java_io_relimus_flatgram_N_nativeInit
 
 extern "C" {
-JNIEXPORT void Java_org_thunderdog_challegram_N_nativeVideoInit (JNIEnv *env, jclass clazz) {
+JNIEXPORT void Java_io_relimus_flatgram_N_nativeVideoInit (JNIEnv *env, jclass clazz) {
   initVideoContextResources();
 }
 
-JNIEXPORT jlong Java_org_thunderdog_challegram_N_createVideoContext (JNIEnv *env, jclass clazz, jstring path, jint needAudio, jlong start, jlong end, jstring destinationPath) {
+JNIEXPORT jlong Java_io_relimus_flatgram_N_createVideoContext (JNIEnv *env, jclass clazz, jstring path, jint needAudio, jlong start, jlong end, jstring destinationPath) {
   const char *pathStr = env->GetStringUTFChars(path, 0);
   const char *destinationPathStr = env->GetStringUTFChars(destinationPath, 0);
   if (pathStr != NULL) {
@@ -37,21 +37,21 @@ JNIEXPORT jlong Java_org_thunderdog_challegram_N_createVideoContext (JNIEnv *env
   return NULL;
 }
 
-JNIEXPORT jlong Java_org_thunderdog_challegram_N_prepareVideoConversion (JNIEnv *env, jclass clazz, jlong ptr) {
+JNIEXPORT jlong Java_io_relimus_flatgram_N_prepareVideoConversion (JNIEnv *env, jclass clazz, jlong ptr) {
   if (ptr != NULL) {
     return prepareVideoContext((void *) ptr);
   }
   return -1;
 }
 
-JNIEXPORT jlong Java_org_thunderdog_challegram_N_processNextVideoPart (JNIEnv *env, jclass clazz, jlong ptr) {
+JNIEXPORT jlong Java_io_relimus_flatgram_N_processNextVideoPart (JNIEnv *env, jclass clazz, jlong ptr) {
   if (ptr != NULL) {
     return processNextPart((void *) ptr);
   }
   return -1;
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_N_destroyVideoContext (JNIEnv *env, jclass clazz, jlong ptr) {
+JNIEXPORT void Java_io_relimus_flatgram_N_destroyVideoContext (JNIEnv *env, jclass clazz, jlong ptr) {
   if (ptr != NULL) {
     destroyVideoContext((void *) ptr);
   }

@@ -1,7 +1,7 @@
 package tgx.flavor;
 
-import org.thunderdog.challegram.BuildConfig;
-import org.thunderdog.challegram.N;
+import io.relimus.flatgram.BuildConfig;
+import io.relimus.flatgram.N;
 
 public class NLoader {
   private static boolean loaded;

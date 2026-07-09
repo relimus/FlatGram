@@ -23,9 +23,9 @@
 # == TELEGRAM X ==
 
 # Keep native bridge
--keep class org.thunderdog.challegram.N { *; }
--keep class org.thunderdog.challegram.N$* { *; }
--keepclassmembers class org.thunderdog.challegram.N { *; }
+-keep class io.relimus.flatgram.N { *; }
+-keep class io.relimus.flatgram.N$* { *; }
+-keepclassmembers class io.relimus.flatgram.N { *; }
 # Keep TdApi.java
 -keep class org.drinkless.tdlib.TdApi { *; }
 -keep class org.drinkless.tdlib.TdApi$* { *; }
@@ -37,13 +37,13 @@
 -keep,allowoptimization interface org.drinkless.tdlib.Client$LogMessageHandler
 
 # Keep log
--keep class org.thunderdog.challegram.Log
--keepclassmembers class org.thunderdog.challegram.Log { *; }
+-keep class io.relimus.flatgram.Log
+-keepclassmembers class io.relimus.flatgram.Log { *; }
 # Keep all related to VoIP
--keep class org.thunderdog.challegram.voip.**
--keepclassmembers class org.thunderdog.challegram.voip.** { *; }
+-keep class io.relimus.flatgram.voip.**
+-keepclassmembers class io.relimus.flatgram.voip.** { *; }
 # Keep sync services
--keep class org.thunderdog.challegram.sync.**
+-keep class io.relimus.flatgram.sync.**
 
 # https://github.com/androidx/media/issues/2535
 -keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }

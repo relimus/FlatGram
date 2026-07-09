@@ -122,11 +122,11 @@ namespace tgcalls {
       jni::throw_new(env, #var_name" not found by path: " path, jni_class::IllegalStateException(env)); \
       return false;\
     }
-    INIT(javaTgCallsController, "org/thunderdog/challegram/voip/TgCallsController")
-    INIT(javaNetworkStats, "org/thunderdog/challegram/voip/NetworkStats")
-    INIT(javaCallConfiguration, "org/thunderdog/challegram/voip/CallConfiguration")
-    INIT(javaCallOptions, "org/thunderdog/challegram/voip/CallOptions")
-    INIT(javaSocks5Proxy, "org/thunderdog/challegram/voip/Socks5Proxy")
+    INIT(javaTgCallsController, "io/relimus/flatgram/voip/TgCallsController")
+    INIT(javaNetworkStats, "io/relimus/flatgram/voip/NetworkStats")
+    INIT(javaCallConfiguration, "io/relimus/flatgram/voip/CallConfiguration")
+    INIT(javaCallOptions, "io/relimus/flatgram/voip/CallOptions")
+    INIT(javaSocks5Proxy, "io/relimus/flatgram/voip/Socks5Proxy")
 #undef INIT
 
 #ifndef DISABLE_TGCALLS
@@ -648,7 +648,7 @@ JNI_OBJECT_FUNC(jlong, voip_TgCallsController, newInstance,
   };
 
   // tgcalls::Proxy
-  jobject jProxy = configuration.getRawObject("proxy", "Lorg/thunderdog/challegram/voip/Socks5Proxy;");
+  jobject jProxy = configuration.getRawObject("proxy", "Lio/relimus/flatgram/voip/Socks5Proxy;");
   if (jProxy != nullptr) {
     jni::Object proxy (env, jProxy, tgcalls::javaSocks5Proxy);
     descriptor.proxy = std::make_unique<tgcalls::Proxy>();
@@ -773,7 +773,7 @@ JNI_OBJECT_FUNC(void, voip_TgCallsController, destroyInstance, jlong ptr) {
   context->tgcalls->stop([context](const tgcalls::FinalState& finalState) {
     tgvoip::jni::DoWithJNI([context, finalState](JNIEnv *env) {
 
-      jobject jConfiguration = context->javaController->getObject(env, "configuration", "Lorg/thunderdog/challegram/voip/CallConfiguration;");
+      jobject jConfiguration = context->javaController->getObject(env, "configuration", "Lio/relimus/flatgram/voip/CallConfiguration;");
       jni::Object configuration (env, jConfiguration, tgcalls::javaCallConfiguration);
       std::string persistentStateFilePath = jni::from_jstring(env, configuration.getString("persistentStateFilePath"));
 
@@ -791,7 +791,7 @@ JNI_OBJECT_FUNC(void, voip_TgCallsController, destroyInstance, jlong ptr) {
 
       jmethodID methodId = env->GetMethodID(
         tgcalls::javaTgCallsController, "handleStop",
-        "(Lorg/thunderdog/challegram/voip/NetworkStats;Ljava/lang/String;)V"
+        "(Lio/relimus/flatgram/voip/NetworkStats;Ljava/lang/String;)V"
       );
       env->CallVoidMethod(context->javaController->thiz, methodId, jTrafficStats, jDebugLog);
 

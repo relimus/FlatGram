@@ -507,7 +507,7 @@ extern "C" {
                                                 String appVersionSignature,
                                                 int sdkVersion, String sdkVersionName, String systemFingerprint,
                                                 String deviceModel, String deviceBrand, String deviceDisplay, String deviceProduct, String deviceManufacturer);*/
-JNIEXPORT void Java_org_thunderdog_challegram_Log_setInternalValues (JNIEnv *env, jclass clazz,
+JNIEXPORT void Java_io_relimus_flatgram_Log_setInternalValues (JNIEnv *env, jclass clazz,
                                                                      jstring logDir,
                                                                      jstring osArch,
                                                                      jstring appVersionSignature, jint appVersionCode,
@@ -536,7 +536,7 @@ JNIEXPORT void Java_org_thunderdog_challegram_Log_setInternalValues (JNIEnv *env
   pthread_mutex_unlock(&file_mutex);
 }
 
-JNIEXPORT jboolean Java_org_thunderdog_challegram_Log_startCaptureImpl (JNIEnv *env, jclass clazz) {
+JNIEXPORT jboolean Java_io_relimus_flatgram_Log_startCaptureImpl (JNIEnv *env, jclass clazz) {
   jboolean res;
   pthread_mutex_lock(&file_mutex);
   if (capture_timestamp == 0) {
@@ -556,7 +556,7 @@ JNIEXPORT jboolean Java_org_thunderdog_challegram_Log_startCaptureImpl (JNIEnv *
   return res;
 }
 
-JNIEXPORT jstring Java_org_thunderdog_challegram_Log_endCaptureImpl (JNIEnv *env, jclass clazz) {
+JNIEXPORT jstring Java_io_relimus_flatgram_Log_endCaptureImpl (JNIEnv *env, jclass clazz) {
   std::string path;
   pthread_mutex_lock(&file_mutex);
   if (capture_timestamp != 0) {
@@ -569,7 +569,7 @@ JNIEXPORT jstring Java_org_thunderdog_challegram_Log_endCaptureImpl (JNIEnv *env
   return (*env).NewStringUTF(path.c_str());
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_Log_logToFileImpl (JNIEnv *env, jclass clazz, jint tag, jint level, jstring msg) {
+JNIEXPORT void Java_io_relimus_flatgram_Log_logToFileImpl (JNIEnv *env, jclass clazz, jint tag, jint level, jstring msg) {
   const char *msg_str = (*env).GetStringUTFChars(msg, JNI_FALSE);
   log(tag, (log_level) level, msg_str, true);
   if (msg_str != NULL) {
@@ -577,34 +577,34 @@ JNIEXPORT void Java_org_thunderdog_challegram_Log_logToFileImpl (JNIEnv *env, jc
   }
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_Log_setLogLevelImpl (JNIEnv *env, jclass clazz, jint level) {
+JNIEXPORT void Java_io_relimus_flatgram_Log_setLogLevelImpl (JNIEnv *env, jclass clazz, jint level) {
   pthread_mutex_lock(&file_mutex);
   current_log_level = (log_level) level;
   pthread_mutex_unlock(&file_mutex);
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_Log_setLogTagsImpl (JNIEnv *env, jclass clazz, jlong tags) {
+JNIEXPORT void Java_io_relimus_flatgram_Log_setLogTagsImpl (JNIEnv *env, jclass clazz, jlong tags) {
   pthread_mutex_lock(&file_mutex);
   current_log_tags = (int64_t) tags;
   pthread_mutex_unlock(&file_mutex);
 }
 
-JNIEXPORT jstring Java_org_thunderdog_challegram_Log_getLogTag (JNIEnv *env, jclass clazz, jint tag) {
+JNIEXPORT jstring Java_io_relimus_flatgram_Log_getLogTag (JNIEnv *env, jclass clazz, jint tag) {
   const char *str = get_log_tag(tag, "");
   return (*env).NewStringUTF(str);
 }
 
-JNIEXPORT jstring Java_org_thunderdog_challegram_Log_getLogTagDescription (JNIEnv *env, jclass clazz, jint tag) {
+JNIEXPORT jstring Java_io_relimus_flatgram_Log_getLogTagDescription (JNIEnv *env, jclass clazz, jint tag) {
   const char *str = get_log_tag_desc(tag, "");
   return (*env).NewStringUTF(str);
 }
 
-JNIEXPORT jstring Java_org_thunderdog_challegram_Log_getDeviceInformation (JNIEnv *env, jclass clazz) {
+JNIEXPORT jstring Java_io_relimus_flatgram_Log_getDeviceInformation (JNIEnv *env, jclass clazz) {
   std::string str = sprintf_device_info();
   return (*env).NewStringUTF(str.c_str());
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_Log_closeLogImpl (JNIEnv *env, jclass clazz) {
+JNIEXPORT void Java_io_relimus_flatgram_Log_closeLogImpl (JNIEnv *env, jclass clazz) {
   log_close();
 }
 }

@@ -4,7 +4,7 @@ import android.graphics.Path
 import me.vkryl.android.util.InvalidateDelegate
 import org.drinkless.tdlib.TdApi.Outline
 import org.drinkless.tdlib.TdApi.Sticker
-import org.thunderdog.challegram.telegram.Tdlib
+import io.relimus.flatgram.telegram.Tdlib
 import tgx.td.buildOutline
 
 class StickerOutline @JvmOverloads constructor(

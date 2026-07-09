@@ -34,7 +34,7 @@ open class ValidateApiTokensTask : BaseTask() {
       val googleAppId = clientInfo["mobilesdk_app_id"]!!.jsonPrimitive.content
       val clientInfoPackage = clientInfo["android_client_info"]!!.jsonObject["package_name"]!!.jsonPrimitive.content
       foundPackageName = clientInfoPackage
-      clientInfoPackage == appId && (googleAppId != "1:1037154859800:android:683d617a5fe76437" || clientInfoPackage == "org.thunderdog.challegram")
+      clientInfoPackage == appId && (googleAppId != "1:1037154859800:android:683d617a5fe76437" || clientInfoPackage == "io.relimus.flatgram")
     }.ifEmpty {
       error(
         "google_services.json is not updated for $appId package. Found: $foundPackageName. " +

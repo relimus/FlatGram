@@ -42,7 +42,7 @@ val config = extra["config"] as ApplicationConfig
 
 //noinspection WrongGradleMethod
 android {
-  namespace = "org.thunderdog.challegram"
+  namespace = "io.relimus.flatgram"
 
   lint {
     disable += "MissingTranslation"

@@ -19,15 +19,15 @@ package tgx.td
 import androidx.collection.LongSparseArray
 import androidx.collection.set
 import org.drinkless.tdlib.TdApi.*
-import org.thunderdog.challegram.R
-import org.thunderdog.challegram.core.Lang
-import org.thunderdog.challegram.data.TD
-import org.thunderdog.challegram.data.TGWebPage
-import org.thunderdog.challegram.tool.Strings
+import io.relimus.flatgram.R
+import io.relimus.flatgram.core.Lang
+import io.relimus.flatgram.data.TD
+import io.relimus.flatgram.data.TGWebPage
+import io.relimus.flatgram.tool.Strings
 import tgx.td.data.MessageWithProperties
 import kotlin.contracts.ExperimentalContracts
 
-// Use this file only for temporary methods that depend on org.thunderdog.challegram.*
+// Use this file only for temporary methods that depend on io.relimus.flatgram.*
 // Or some legacy methods that come from the legacy TD.java file
 
 enum class MediaType {

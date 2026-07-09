@@ -19,11 +19,11 @@
 #define TGVOIP_FUNC(RETURN_TYPE, NAME, ...)          \
   extern "C" {                                       \
   JNIEXPORT RETURN_TYPE                              \
-      Java_org_thunderdog_challegram_voip_##NAME(       \
+      Java_io_relimus_flatgram_voip_##NAME(       \
           JNIEnv *env, ##__VA_ARGS__);               \
   }                                                  \
   JNIEXPORT RETURN_TYPE                              \
-      Java_org_thunderdog_challegram_voip_##NAME(       \
+      Java_io_relimus_flatgram_voip_##NAME(       \
           JNIEnv *env, ##__VA_ARGS__)
 
 #endif //CHALLEGRAM_TGVOIP_CONFIG_H

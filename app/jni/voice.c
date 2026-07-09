@@ -682,7 +682,7 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
     return 1;
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_startRecord(JNIEnv *env, jclass class, jstring path, jint sampleRate) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_startRecord(JNIEnv *env, jclass class, jstring path, jint sampleRate) {
     const char *pathStr = (*env)->GetStringUTFChars(env, path, 0);
 
     int32_t result = initRecorder(pathStr, sampleRate);
@@ -694,7 +694,7 @@ JNIEXPORT jint Java_org_thunderdog_challegram_N_startRecord(JNIEnv *env, jclass 
     return result;
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_resumeRecord(JNIEnv *env, jclass class, jstring path, jint sampleRate) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_resumeRecord(JNIEnv *env, jclass class, jstring path, jint sampleRate) {
     const char *pathStr = (*env)->GetStringUTFChars(env, path, 0);
 
     int32_t result = resumeRecorder(pathStr, sampleRate);
@@ -706,12 +706,12 @@ JNIEXPORT jint Java_org_thunderdog_challegram_N_resumeRecord(JNIEnv *env, jclass
     return result;
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_writeFrame(JNIEnv *env, jclass class, jobject frame, jint len) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_writeFrame(JNIEnv *env, jclass class, jobject frame, jint len) {
     jbyte *frameBytes = (*env)->GetDirectBufferAddress(env, frame);
     return writeFrame((uint8_t *) frameBytes, (size_t) len);
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_N_stopRecord(JNIEnv *env, jclass class, jboolean allowResuming) {
+JNIEXPORT void Java_io_relimus_flatgram_N_stopRecord(JNIEnv *env, jclass class, jboolean allowResuming) {
     if (allowResuming && _filePath != NULL) {
         saveResumeData();
     }
@@ -814,22 +814,22 @@ void fillBuffer(uint8_t *buffer, int capacity, int32_t *args) {
     }
 }
 
-JNIEXPORT jlong Java_org_thunderdog_challegram_N_getTotalPcmDuration(JNIEnv *env, jclass class) {
+JNIEXPORT jlong Java_io_relimus_flatgram_N_getTotalPcmDuration(JNIEnv *env, jclass class) {
     return _totalPcmDuration;
 }
 
-JNIEXPORT void Java_org_thunderdog_challegram_N_readOpusFile(JNIEnv *env, jclass class, jobject buffer, jint capacity, jintArray args) {
+JNIEXPORT void Java_io_relimus_flatgram_N_readOpusFile(JNIEnv *env, jclass class, jobject buffer, jint capacity, jintArray args) {
     jint *argsArr = (*env)->GetIntArrayElements(env, args, 0);
     jbyte *bufferBytes = (*env)->GetDirectBufferAddress(env, buffer);
     fillBuffer((uint8_t *) bufferBytes, capacity, argsArr);
     (*env)->ReleaseIntArrayElements(env, args, argsArr, 0);
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_seekOpusFile(JNIEnv *env, jclass class, jfloat position) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_seekOpusFile(JNIEnv *env, jclass class, jfloat position) {
     return seekPlayer(position);
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_openOpusFile(JNIEnv *env, jclass class, jstring path) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_openOpusFile(JNIEnv *env, jclass class, jstring path) {
     const char *pathStr = (*env)->GetStringUTFChars(env, path, 0);
 
     int result = initPlayer(pathStr);
@@ -841,7 +841,7 @@ JNIEXPORT jint Java_org_thunderdog_challegram_N_openOpusFile(JNIEnv *env, jclass
     return result;
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_isOpusFile(JNIEnv *env, jclass class, jstring path) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_isOpusFile(JNIEnv *env, jclass class, jstring path) {
     const char *pathStr = (*env)->GetStringUTFChars(env, path, 0);
 
     int result = 0;
@@ -872,7 +872,7 @@ static inline void set_bits(uint8_t *bytes, int32_t bitOffset, int32_t value) {
     *((int32_t *) bytes) |= (value << bitOffset);
 }
 
-JNIEXPORT jbyteArray Java_org_thunderdog_challegram_N_getWaveform(JNIEnv *env, jclass class, jstring path) {
+JNIEXPORT jbyteArray Java_io_relimus_flatgram_N_getWaveform(JNIEnv *env, jclass class, jstring path) {
     const char *pathStr = (*env)->GetStringUTFChars(env, path, 0);
     if (pathStr == NULL) {
       logw(TAG_VOICE, "pathStr == NULL");
@@ -964,7 +964,7 @@ JNIEXPORT jbyteArray Java_org_thunderdog_challegram_N_getWaveform(JNIEnv *env, j
     return result;
 }
 
-JNIEXPORT jbyteArray Java_org_thunderdog_challegram_N_getWaveform2(JNIEnv *env, jclass class, jshortArray array, jint length) {
+JNIEXPORT jbyteArray Java_io_relimus_flatgram_N_getWaveform2(JNIEnv *env, jclass class, jshortArray array, jint length) {
 
     jshort *sampleBuffer = (*env)->GetShortArrayElements(env, array, 0);
 

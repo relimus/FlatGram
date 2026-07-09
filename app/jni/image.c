@@ -290,7 +290,7 @@ static void fastBlur(int imageWidth, int imageHeight, int imageStride, void *pix
     free(rgb);
 }
 
-JNIEXPORT jint Java_org_thunderdog_challegram_N_blurBitmap(JNIEnv *env, jclass class, jobject bitmap, int radius, int unpin, int forceLess) {
+JNIEXPORT jint Java_io_relimus_flatgram_N_blurBitmap(JNIEnv *env, jclass class, jobject bitmap, int radius, int unpin, int forceLess) {
   if (!bitmap) {
     return -1;
   }
@@ -331,7 +331,7 @@ JNIEXPORT jint Java_org_thunderdog_challegram_N_blurBitmap(JNIEnv *env, jclass c
 const uint32_t PGPhotoEnhanceHistogramBins = 256;
 const uint32_t PGPhotoEnhanceSegments = 4;
 
-JNIEXPORT void Java_org_thunderdog_challegram_N_calcCDT(JNIEnv *env, jclass class, jobject hsvBuffer, int width, int height, jobject buffer) {
+JNIEXPORT void Java_io_relimus_flatgram_N_calcCDT(JNIEnv *env, jclass class, jobject hsvBuffer, int width, int height, jobject buffer) {
     float imageWidth = width;
     float imageHeight = height;
     float _clipLimit = 1.25f;
@@ -435,16 +435,16 @@ JNIEXPORT void Java_org_thunderdog_challegram_N_calcCDT(JNIEnv *env, jclass clas
     free(cdfsMin);
 }
 
-JNIEXPORT int Java_org_thunderdog_challegram_N_pinBitmap (JNIEnv *env, jclass class, jobject bitmap) {
+JNIEXPORT int Java_io_relimus_flatgram_N_pinBitmap (JNIEnv *env, jclass class, jobject bitmap) {
   void *pixels;
   return AndroidBitmap_lockPixels(env, bitmap, &pixels) >= 0 ? 1 : 0;
 }
 
-JNIEXPORT int Java_org_thunderdog_challegram_N_unpinBitmap (JNIEnv *env, jclass class, jobject bitmap) {
+JNIEXPORT int Java_io_relimus_flatgram_N_unpinBitmap (JNIEnv *env, jclass class, jobject bitmap) {
   return AndroidBitmap_unlockPixels(env, bitmap);
 }
 
-JNIEXPORT jboolean Java_org_thunderdog_challegram_N_hasBuiltInWebpSupport (JNIEnv *env, jclass class) {
+JNIEXPORT jboolean Java_io_relimus_flatgram_N_hasBuiltInWebpSupport (JNIEnv *env, jclass class) {
 #ifdef NO_WEBP
   return 0;
 #else
@@ -454,7 +454,7 @@ JNIEXPORT jboolean Java_org_thunderdog_challegram_N_hasBuiltInWebpSupport (JNIEn
 
 #define USE_CUSTOM_WEBP_DECODING
 
-JNIEXPORT jboolean Java_org_thunderdog_challegram_N_loadWebpImage (JNIEnv *env, jclass class, jobject outputBitmap, jobject buffer, jint len, jobject options, jboolean unpin) {
+JNIEXPORT jboolean Java_io_relimus_flatgram_N_loadWebpImage (JNIEnv *env, jclass class, jobject outputBitmap, jobject buffer, jint len, jobject options, jboolean unpin) {
 #ifdef NO_WEBP
   return 0;
 #else

@@ -42,7 +42,7 @@ JNI_FUNC(jobjectArray, getEmojiSuggestions, jstring query) {
 
   jclass jclass_Suggestion = nullptr;
   jmethodID jnew_Suggestion = jni_method::get(env,
-                                              "org/thunderdog/challegram/N$Suggestion",
+                                              "io/relimus/flatgram/N$Suggestion",
                                               "<init>",
                                               "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
                                               &jclass_Suggestion);

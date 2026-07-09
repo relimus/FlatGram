@@ -17,6 +17,6 @@ import org.gradle.api.tasks.TaskAction
 open class GeneratePhoneFormatTask : BaseTask() {
   @TaskAction
   fun generatePhoneFormat () {
-    // TODO generate org.thunderdog.challegram.tool.TGPhoneFormat based on phoneformat_masks.txt
+    // TODO generate io.relimus.flatgram.tool.TGPhoneFormat based on phoneformat_masks.txt
   }
 }

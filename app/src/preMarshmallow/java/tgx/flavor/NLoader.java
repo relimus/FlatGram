@@ -22,9 +22,9 @@ import androidx.annotation.Nullable;
 import com.getkeepsafe.relinker.ReLinker;
 import com.getkeepsafe.relinker.ReLinkerInstance;
 
-import org.thunderdog.challegram.BuildConfig;
-import org.thunderdog.challegram.N;
-import org.thunderdog.challegram.tool.UI;
+import io.relimus.flatgram.BuildConfig;
+import io.relimus.flatgram.N;
+import io.relimus.flatgram.tool.UI;
 
 import java.util.ArrayList;
 import java.util.List;

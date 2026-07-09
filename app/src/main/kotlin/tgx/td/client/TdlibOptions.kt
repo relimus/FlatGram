@@ -19,7 +19,7 @@ import androidx.annotation.IntDef
 import me.vkryl.core.BitwiseUtils
 import me.vkryl.core.clamp
 import org.drinkless.tdlib.TdApi.*
-import org.thunderdog.challegram.Log
+import io.relimus.flatgram.Log
 import tgx.td.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong

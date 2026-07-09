@@ -27,13 +27,13 @@ import android.widget.Toast
 import androidx.collection.SparseArrayCompat
 import me.vkryl.core.lambda.RunnableBool
 import org.drinkless.tdlib.TdApi.*
-import org.thunderdog.challegram.R
-import org.thunderdog.challegram.core.Lang
-import org.thunderdog.challegram.navigation.ViewController
-import org.thunderdog.challegram.navigation.ViewController.OptionColor
-import org.thunderdog.challegram.telegram.Tdlib
-import org.thunderdog.challegram.theme.ThemeDelegate
-import org.thunderdog.challegram.tool.UI
+import io.relimus.flatgram.R
+import io.relimus.flatgram.core.Lang
+import io.relimus.flatgram.navigation.ViewController
+import io.relimus.flatgram.navigation.ViewController.OptionColor
+import io.relimus.flatgram.telegram.Tdlib
+import io.relimus.flatgram.theme.ThemeDelegate
+import io.relimus.flatgram.tool.UI
 import tgx.td.assertReportSponsoredResult_79c7a88e
 import tgx.td.unsupported
 

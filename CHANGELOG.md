@@ -49,4 +49,4 @@ https://t.me/tgx_bot — verify APK checksum for authenticity against modificati
 
 ### Source Code
 
-https://github.com/TGX-Android/Telegram-X — main repository of Telegram X
+https://github.com/relimus/FlatGram — main repository of FlatGram

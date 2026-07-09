@@ -22,7 +22,7 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "tgx"
+rootProject.name = "FlatGram"
 include(
   ":tdlib",
   ":tgcalls",

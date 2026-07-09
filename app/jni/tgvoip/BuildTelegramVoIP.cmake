@@ -359,7 +359,7 @@ target_compile_definitions(tgvoip PRIVATE
   TGVOIP_HAS_CONFIG
   TGVOIP_NO_VIDEO
   TGVOIP_NO_GROUP_CALLS
-  TGVOIP_PACKAGE_PATH="org/thunderdog/challegram/voip"
+  TGVOIP_PACKAGE_PATH="io/relimus/flatgram/voip"
   TGVOIP_PEER_TAG_VARIABLE_NAME="peerTag"
   TGVOIP_ENDPOINT_CLASS="org/drinkless/tdlib/TdApi$CallServer"
   TGVOIP_ENDPOINT_TYPE_CLASS="org/drinkless/tdlib/TdApi$CallServerType"
