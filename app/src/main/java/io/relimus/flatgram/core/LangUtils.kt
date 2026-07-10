@@ -955,6 +955,7 @@ import io.relimus.flatgram.R
     "DownloadUpdateSize",
     "DownloadedToPath",
     "Downloading",
+    "DownloadingFiles",
     "DownloadingOf",
     "Downloads",
     "Draft",
@@ -2748,6 +2749,7 @@ import io.relimus.flatgram.R
     "RecentActionsGroupHint",
     "RecentAdmins",
     "RecentStickers",
+    "RecentlyDownloaded",
     "RecommendedFolders",
     "RecommendedSign",
     "RecordingAudio",
@@ -2792,6 +2794,7 @@ import io.relimus.flatgram.R
     "RemoveCall",
     "RemoveCaptions",
     "RemoveChannelPhoto",
+    "RemoveDocumentsAlertMessage",
     "RemoveEmojiSet",
     "RemoveFolder",
     "RemoveFolderConfirm",
@@ -4374,6 +4377,8 @@ import io.relimus.flatgram.R
     "RemindInXHours",
     "RemindInXMinutes",
     "RemindInXYears",
+    "RemoveDocumentsMessage",
+    "RemoveDocumentsTitle",
     "RemoveXEmoji",
     "RemoveXEmojiPacks",
     "RemoveXMasks",
@@ -5767,6 +5772,15 @@ import io.relimus.flatgram.R
     Lang.PluralForm.ZERO -> R.string.xGiveawayPrizePremium_zero
     else -> throw IllegalArgumentException(form.toString())
   }
+  R.string.RemoveDocumentsTitle -> when (form) {
+    Lang.PluralForm.FEW -> R.string.RemoveDocumentsTitle_few
+    Lang.PluralForm.MANY -> R.string.RemoveDocumentsTitle_many
+    Lang.PluralForm.ONE -> R.string.RemoveDocumentsTitle_one
+    Lang.PluralForm.OTHER -> R.string.RemoveDocumentsTitle_other
+    Lang.PluralForm.TWO -> R.string.RemoveDocumentsTitle_two
+    Lang.PluralForm.ZERO -> R.string.RemoveDocumentsTitle_zero
+    else -> throw IllegalArgumentException(form.toString())
+  }
   R.string.ChatFolderInviteLinkInfo -> when (form) {
     Lang.PluralForm.FEW -> R.string.ChatFolderInviteLinkInfo_few
     Lang.PluralForm.MANY -> R.string.ChatFolderInviteLinkInfo_many
@@ -6665,6 +6679,15 @@ import io.relimus.flatgram.R
     Lang.PluralForm.OTHER -> R.string.DeleteFolderAndLeaveXChats_other
     Lang.PluralForm.TWO -> R.string.DeleteFolderAndLeaveXChats_two
     Lang.PluralForm.ZERO -> R.string.DeleteFolderAndLeaveXChats_zero
+    else -> throw IllegalArgumentException(form.toString())
+  }
+  R.string.RemoveDocumentsMessage -> when (form) {
+    Lang.PluralForm.FEW -> R.string.RemoveDocumentsMessage_few
+    Lang.PluralForm.MANY -> R.string.RemoveDocumentsMessage_many
+    Lang.PluralForm.ONE -> R.string.RemoveDocumentsMessage_one
+    Lang.PluralForm.OTHER -> R.string.RemoveDocumentsMessage_other
+    Lang.PluralForm.TWO -> R.string.RemoveDocumentsMessage_two
+    Lang.PluralForm.ZERO -> R.string.RemoveDocumentsMessage_zero
     else -> throw IllegalArgumentException(form.toString())
   }
   R.string.StatsXCharacters -> when (form) {

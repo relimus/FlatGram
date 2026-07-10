@@ -116,6 +116,16 @@ open class FetchLanguagesTask : BaseTask() {
       "ExperimentalBuildInfo"
     )
 
+    val telegramAndroidKeyAliases = mapOf(
+      "Downloading" to "DownloadingFiles",
+      "RecentlyDownloaded" to "RecentlyDownloaded",
+      "RemoveDocumentsAlertMessage" to "RemoveDocumentsAlertMessage"
+    )
+    val telegramAndroidPluralKeys = setOf(
+      "RemoveDocumentsMessage",
+      "RemoveDocumentsTitle"
+    )
+
     // 1. Setup OkHttp
 
     val dispatcher = Dispatcher()
@@ -195,6 +205,22 @@ open class FetchLanguagesTask : BaseTask() {
                 } else {
                   outputStrings.add(Pair(name, value))
                 }
+              }
+            }
+
+            if (!isDefault) {
+              val telegramStrings = XmlParser().parseText(client.newCall(Request.Builder()
+                .url("https://translations.telegram.org/${languageCode}/android/export")
+                .build()
+              ).execute().body.string())
+              for (string in telegramStrings["string"] as NodeList) {
+                val name = (string as Node)["@name"].toString()
+                val outputName = telegramAndroidKeyAliases[name] ?: name.takeIf { key ->
+                  telegramAndroidPluralKeys.any { key.startsWith("${it}_") }
+                } ?: continue
+                outputStrings.add(Pair(outputName, string.text()
+                  .replace("%1\$d", "%1\$s")
+                  .replace("%d", "%1\$s")))
               }
             }
 

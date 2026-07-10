@@ -1498,6 +1498,8 @@
   <string name="FreeXofY">Free %1$s of %2$s</string>
   <string name="Folder">Folder</string>
   <string name="Downloads">Downloads</string>
+  <string name="DownloadingFiles">Downloading</string>
+  <string name="RecentlyDownloaded">Recently downloaded</string>
   <string name="AccessError">Access error</string>
   <string name="FolderDoesNotExist">This folder doesn\'t exist</string>
   <string name="NoMusicFilesFound">No music files found</string>
@@ -1856,6 +1858,11 @@
   <string name="SendMessageToX">Send message to %1$s</string>
   <string name="DeleteFileHint">Note: you will be able to download this file any time later.</string>
   <string name="DeleteMultipleFilesHint">Note: you will be able to download these files any time later.</string>
+  <string name="RemoveDocumentsMessage_one">Do you want remove this document from Downloads?</string>
+  <string name="RemoveDocumentsMessage_other">Do you want remove these **%1$s documents** from Downloads?</string>
+  <string name="RemoveDocumentsTitle_one">Remove %1$s document</string>
+  <string name="RemoveDocumentsTitle_other">Remove %1$s documents</string>
+  <string name="RemoveDocumentsAlertMessage">They will be deleted from your disk, but will remain accessible in the cloud.</string>
   <string name="FreedX">Freed %1$s of disk space</string>
   <string name="LinkPreview">Link Preview</string>
   <string name="ClearChannelConfirm">Are you sure you want to clear history for this channel? This action cannot be undone.</string>
