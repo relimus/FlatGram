@@ -81,6 +81,7 @@ import io.relimus.flatgram.widget.CheckBoxView;
 import io.relimus.flatgram.widget.CustomTextView;
 import io.relimus.flatgram.widget.DoubleTextView;
 import io.relimus.flatgram.widget.DoubleTextViewWithIcon;
+import io.relimus.flatgram.widget.DownloadedFileView;
 import io.relimus.flatgram.widget.EmbeddableStickerView;
 import io.relimus.flatgram.widget.EmptySmartView;
 import io.relimus.flatgram.widget.FileProgressComponent;
@@ -486,6 +487,10 @@ public class SettingsAdapter extends RecyclerView.Adapter<SettingHolder> impleme
   }
 
   protected void setDoubleText (ListItem item, int position, DoubleTextView textView, boolean isUpdate) {
+    // Override
+  }
+
+  protected void setDownloadedFileData (ListItem item, int position, DownloadedFileView view) {
     // Override
   }
 
@@ -1426,6 +1431,10 @@ public class SettingsAdapter extends RecyclerView.Adapter<SettingHolder> impleme
       }
       case ListItem.TYPE_CHAT_BETTER: {
         setChatData(item, position, (BetterChatView) holder.itemView);
+        break;
+      }
+      case ListItem.TYPE_DOWNLOADED_FILE: {
+        setDownloadedFileData(item, position, (DownloadedFileView) holder.itemView);
         break;
       }
       case ListItem.TYPE_BUILD_NO: {

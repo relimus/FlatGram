@@ -85,6 +85,7 @@ import io.relimus.flatgram.widget.CustomEmojiTextView;
 import io.relimus.flatgram.widget.CustomTextView;
 import io.relimus.flatgram.widget.DoubleTextView;
 import io.relimus.flatgram.widget.DoubleTextViewWithIcon;
+import io.relimus.flatgram.widget.DownloadedFileView;
 import io.relimus.flatgram.widget.EmbeddableStickerView;
 import io.relimus.flatgram.widget.EmptySmartView;
 import io.relimus.flatgram.widget.GiftHeaderView;
@@ -242,6 +243,7 @@ public class SettingHolder extends RecyclerView.ViewHolder {
         return Screen.dp(63);
       }
       case ListItem.TYPE_CHAT_BETTER:
+      case ListItem.TYPE_DOWNLOADED_FILE:
       case ListItem.TYPE_USER: {
         return Screen.dp(72f);
       }
@@ -2109,6 +2111,14 @@ public class SettingHolder extends RecyclerView.ViewHolder {
         if (themeProvider != null) {
           themeProvider.addThemeInvalidateListener(view);
         }
+        return new SettingHolder(view);
+      }
+      case ListItem.TYPE_DOWNLOADED_FILE: {
+        DownloadedFileView view = new DownloadedFileView(context);
+        RippleSupport.setSimpleWhiteBackground(view, themeProvider);
+        view.setOnClickListener(onClickListener);
+        view.setOnLongClickListener(onLongClickListener);
+        view.addThemeListeners(themeProvider);
         return new SettingHolder(view);
       }
       case ListItem.TYPE_RECYCLER_HORIZONTAL: {

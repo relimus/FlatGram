@@ -17,6 +17,9 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Rect;
+import android.text.SpannableStringBuilder;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -26,42 +29,62 @@ import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.PagerAdapter;
 
 import org.drinkless.tdlib.TdApi;
 import io.relimus.flatgram.R;
+import io.relimus.flatgram.U;
+import io.relimus.flatgram.component.dialogs.DownloadedFileItem;
+import io.relimus.flatgram.component.dialogs.DownloadsSearchManager;
 import io.relimus.flatgram.component.attach.CustomItemAnimator;
 import io.relimus.flatgram.component.dialogs.SearchManager;
 import io.relimus.flatgram.component.user.RemoveHelper;
 import io.relimus.flatgram.config.Config;
+import io.relimus.flatgram.core.Background;
 import io.relimus.flatgram.core.Lang;
 import io.relimus.flatgram.data.TGFoundChat;
 import io.relimus.flatgram.data.TGFoundMessage;
+import io.relimus.flatgram.mediaview.MediaViewController;
+import io.relimus.flatgram.mediaview.data.MediaItem;
+import io.relimus.flatgram.mediaview.data.MediaStack;
 import io.relimus.flatgram.telegram.TGLegacyManager;
 import io.relimus.flatgram.telegram.Tdlib;
 import io.relimus.flatgram.telegram.TdlibMessageViewer;
 import io.relimus.flatgram.telegram.TdlibUi;
+import io.relimus.flatgram.tool.Intents;
+import io.relimus.flatgram.tool.TGMimeType;
 import io.relimus.flatgram.theme.ColorId;
 import io.relimus.flatgram.theme.Theme;
 import io.relimus.flatgram.tool.UI;
 import io.relimus.flatgram.tool.Views;
 import io.relimus.flatgram.ui.ListItem;
+import io.relimus.flatgram.ui.ShareController;
 import io.relimus.flatgram.ui.SettingHolder;
 import io.relimus.flatgram.ui.SettingsAdapter;
+import io.relimus.flatgram.util.ListItemDiffUtilCallback;
 import io.relimus.flatgram.v.CustomRecyclerView;
 import io.relimus.flatgram.widget.BaseView;
 import io.relimus.flatgram.widget.BetterChatView;
+import io.relimus.flatgram.widget.DownloadedFileView;
 import io.relimus.flatgram.widget.ForceTouchView;
 import io.relimus.flatgram.widget.ListInfoView;
 import io.relimus.flatgram.widget.VerticalChatView;
+import io.relimus.flatgram.widget.ViewPager;
+import io.relimus.flatgram.widget.rtl.RtlViewPager;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import me.vkryl.android.AnimatorUtils;
 import me.vkryl.android.widget.FrameLayoutFix;
 import me.vkryl.core.ArrayUtils;
+import me.vkryl.core.StringUtils;
 
 public abstract class TelegramViewController<T> extends ViewController<T> {
   public TelegramViewController (@NonNull Context context, Tdlib tdlib) {
@@ -71,10 +94,28 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   // Search chats
 
   private CustomRecyclerView chatSearchView;
+  private View chatSearchContentView;
   private TdlibMessageViewer.Viewport chatSearchViewport;
   private SettingsAdapter chatSearchAdapter;
   private SearchManager chatSearchManager;
   private boolean chatSearchDisallowScreenshots;
+
+  private static final int SEARCH_TAB_CHATS = 0;
+  private static final int SEARCH_TAB_CHANNELS = 1;
+  private static final int SEARCH_TAB_DOWNLOADS = 2;
+  private static final long DOWNLOADS_ACTIVE_SECTION_ID = -100;
+  private static final long DOWNLOADS_COMPLETED_SECTION_ID = -200;
+
+  private int searchTab = SEARCH_TAB_CHATS;
+  private ViewPagerTopView searchTabsView;
+  private RtlViewPager searchPager;
+  private CustomRecyclerView channelSearchView, downloadsSearchView;
+  private SettingsAdapter channelSearchAdapter, downloadsAdapter;
+  private SearchManager channelSearchManager;
+  private DownloadsSearchManager downloadsSearchManager;
+  private final ArrayList<DownloadedFileItem> selectedDownloadItems = new ArrayList<>();
+  private ArrayList<TGFoundChat> channelLocalChats, channelGlobalChats;
+  private final ArrayList<ListItem> downloadsTempItems = new ArrayList<>();
 
   /**
    * @return true, if event is consumed. False, if chat should be handled with default action (open)
@@ -105,6 +146,10 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
 
   protected int getChatSearchFlags () {
     return SearchManager.FLAG_NEED_TOP_CHATS;
+  }
+
+  protected boolean needSearchTabs () {
+    return false;
   }
 
   protected boolean filterChatSearchResult (TdApi.Chat chat) {
@@ -155,6 +200,12 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
     super.onBottomInsetChanged(extraBottomInset, extraBottomInsetWithoutIme, isImeInset);
     if (chatSearchView != null) {
       chatSearchView.setPadding(0, 0, 0, extraBottomInsetWithoutIme);
+    }
+    if (channelSearchView != null) {
+      channelSearchView.setPadding(0, 0, 0, extraBottomInsetWithoutIme);
+    }
+    if (downloadsSearchView != null) {
+      downloadsSearchView.setPadding(0, 0, 0, extraBottomInsetWithoutIme);
     }
   }
 
@@ -207,7 +258,7 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
             context().checkDisallowScreenshots();
           }
         }
-        if (last + 5 >= chatSearchAdapter.getItems().size()) {
+        if ((!needSearchTabs() || searchTab == SEARCH_TAB_CHATS) && last + 5 >= chatSearchAdapter.getItems().size()) {
           chatSearchManager.loadMoreMessages();
         }
       }
@@ -222,6 +273,64 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
       isSearchContentVisible = true;
     }
     chatSearchView.setLayoutParams(FrameLayoutFix.newParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    ViewGroup searchContentWrap = null;
+    if (needSearchTabs()) {
+      searchContentWrap = new LinearLayout(context());
+      ((LinearLayout) searchContentWrap).setOrientation(LinearLayout.VERTICAL);
+      searchContentWrap.setAlpha(chatSearchView.getAlpha());
+      searchContentWrap.setBackgroundColor(Theme.backgroundColor());
+      addThemeBackgroundColorListener(searchContentWrap, ColorId.background);
+      searchContentWrap.setLayoutParams(FrameLayoutFix.newParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+      searchTabsView = new ViewPagerTopView(context());
+      searchTabsView.setItems(Arrays.asList(
+        new ViewPagerTopView.Item(Lang.getString(R.string.Chats)),
+        new ViewPagerTopView.Item(Lang.getString(R.string.Channels)),
+        new ViewPagerTopView.Item(Lang.getString(R.string.Downloads))
+      ));
+      searchTabsView.setSelectionColorId(ColorId.headerTabActive);
+      searchTabsView.setTextFromToColorId(ColorId.headerTabInactiveText, ColorId.headerTabActiveText);
+      searchTabsView.setOnItemClickListener(index -> {
+        if (searchPager.getCurrentItem() != index) {
+          searchTabsView.setFromTo(searchPager.getCurrentItem(), index);
+          searchPager.setCurrentItem(index, true);
+        }
+      });
+      searchTabsView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, SettingHolder.measureHeightForType(ListItem.TYPE_FAKE_PAGER_TOPVIEW)));
+      searchContentWrap.addView(searchTabsView);
+
+      searchPager = new RtlViewPager(context());
+      searchPager.setOffscreenPageLimit(2);
+      searchPager.setOverScrollMode(Config.HAS_NICE_OVER_SCROLL_EFFECT ?
+        View.OVER_SCROLL_IF_CONTENT_SCROLLS : View.OVER_SCROLL_NEVER);
+      searchPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+        @Override
+        public void onPageScrolled (int position, float positionOffset, int positionOffsetPixels) {
+          searchTabsView.setSelectionFactor(position + ViewPager.clampPositionOffset(positionOffset));
+        }
+
+        @Override
+        public void onPageSelected (int position) {
+          setSearchTab(position);
+        }
+
+        @Override
+        public void onPageScrollStateChanged (int state) {
+          if (state != ViewPager.SCROLL_STATE_SETTLING) {
+            searchTabsView.resetFromTo();
+          }
+        }
+      });
+      searchPager.setLayoutParams(new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+      ));
+      chatSearchView.setAlpha(1f);
+      ((LinearLayout) searchContentWrap).addView(searchPager);
+    }
+    chatSearchContentView = searchContentWrap != null ? searchContentWrap : chatSearchView;
+    if (parent != null && searchPager != null) {
+      chatSearchContentView.setVisibility(View.INVISIBLE);
+    }
 
     final BaseView.ActionListProvider previewProvider = (v, context, ids, icons, strings, target) -> {
       final ListItem item = (ListItem) v.getTag();
@@ -874,8 +983,38 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
       }
     });
 
+    if (needSearchTabs()) {
+      generateChannelSearchView();
+      generateDownloadsSearchView();
+      final View[] searchPages = {chatSearchView, channelSearchView, downloadsSearchView};
+      searchPager.setAdapter(new PagerAdapter() {
+        @Override
+        public int getCount () {
+          return searchPages.length;
+        }
+
+        @Override
+        public boolean isViewFromObject (@NonNull View view, @NonNull Object object) {
+          return view == object;
+        }
+
+        @Override
+        public @NonNull Object instantiateItem (@NonNull ViewGroup container, int position) {
+          container.addView(searchPages[position]);
+          return searchPages[position];
+        }
+
+        @Override
+        public void destroyItem (@NonNull ViewGroup container, int position, @NonNull Object object) {
+          container.removeView((View) object);
+        }
+      });
+      searchPager.setCurrentItem(searchTab, false);
+      searchTabsView.setSelectionFactor(searchTab);
+    }
+
     if (parent != null) {
-      parent.addView(chatSearchView);
+      parent.addView(searchContentWrap != null ? searchContentWrap : chatSearchView);
     }
     if (needChatSearchManagerPreparation()) {
       chatSearchManager.onPrepare(getChatMessagesSearchChatList(), getChatSearchInitialQuery());
@@ -913,7 +1052,16 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   private void setSearchContentVisible (boolean isVisible) {
     if (this.isSearchContentVisible != isVisible) {
       this.isSearchContentVisible = isVisible;
+      if (searchPager != null) {
+        chatSearchContentView.setVisibility(isVisible ? View.VISIBLE : View.INVISIBLE);
+      }
       chatSearchView.setScrollDisabled(!isVisible);
+      if (channelSearchView != null) {
+        channelSearchView.setScrollDisabled(!isVisible);
+      }
+      if (downloadsSearchView != null) {
+        downloadsSearchView.setScrollDisabled(!isVisible);
+      }
       chatSearchViewport.notifyLockValueChanged();
       context().checkDisallowScreenshots();
     }
@@ -1007,6 +1155,554 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
     return R.string.general_Messages;
   }
 
+  private CustomRecyclerView newSearchRecyclerView () {
+    CustomRecyclerView recyclerView = (CustomRecyclerView) Views.inflate(context(), R.layout.recycler_custom, null);
+    recyclerView.setClipToPadding(false);
+    recyclerView.setPadding(0, 0, 0, systemInsets.bottom);
+    Views.setScrollBarPosition(recyclerView);
+    recyclerView.setBackgroundColor(Theme.backgroundColor());
+    addThemeBackgroundColorListener(recyclerView, ColorId.background);
+    recyclerView.setLayoutManager(new LinearLayoutManager(context(), RecyclerView.VERTICAL, false));
+    recyclerView.setLayoutParams(FrameLayoutFix.newParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    return recyclerView;
+  }
+
+  private void generateChannelSearchView () {
+    channelSearchView = newSearchRecyclerView();
+    channelSearchAdapter = new SettingsAdapter(this, v -> {
+      ListItem listItem = (ListItem) v.getTag();
+      if (listItem != null && listItem.getId() == R.id.search_chat_global) {
+        TGFoundChat chat = (TGFoundChat) listItem.getData();
+        if (chat.getId() != 0) {
+          preventLeavingSearchMode();
+          channelSearchManager.addRecentlyFoundChat(chat);
+          if (!onFoundChatClick(v, chat)) {
+            tdlib.ui().openChat(TelegramViewController.this, chat.getId(), null);
+          }
+        }
+      }
+    }, this) {
+      @Override
+      protected void setChatData (ListItem item, int position, BetterChatView chatView) {
+        chatView.setChat((TGFoundChat) item.getData());
+        TelegramViewController.this.modifyFoundChatView(item, position, chatView);
+      }
+    };
+    channelSearchView.setAdapter(channelSearchAdapter);
+    channelSearchManager = new SearchManager(tdlib, new SearchManager.Listener() {
+      @Override
+      public boolean customFilter (TdApi.Chat chat) {
+        return tdlib.isChannelChat(chat);
+      }
+
+      @Override
+      public void onPerformNewSearch (boolean isDefault) {
+        channelLocalChats = null;
+        channelGlobalChats = null;
+        channelSearchAdapter.setItems(new ListItem[]{new ListItem(ListItem.TYPE_EMPTY_OFFSET_SMALL)}, false);
+      }
+
+      @Override
+      public void onAddLocalChats (ArrayList<TGFoundChat> localChats) {
+        channelLocalChats = localChats;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onAddMoreLocalChats (ArrayList<TGFoundChat> addedLocalChats, int oldChatCount) {
+        if (channelLocalChats == null) {
+          channelLocalChats = addedLocalChats;
+        } else if (addedLocalChats != null && !addedLocalChats.isEmpty()) {
+          channelLocalChats.addAll(addedLocalChats);
+        }
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onUpdateLocalChats (int oldChatCount, ArrayList<TGFoundChat> localChats) {
+        channelLocalChats = localChats;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onRemoveLocalChats (int oldChatCount) {
+        channelLocalChats = null;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onAddGlobalChats (ArrayList<TGFoundChat> globalChats) {
+        channelGlobalChats = globalChats;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onUpdateGlobalChats (int oldChatCount, ArrayList<TGFoundChat> globalChats) {
+        channelGlobalChats = globalChats;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onRemoveGlobalChats (int oldChatCount) {
+        channelGlobalChats = null;
+        setChannelSearchItems();
+      }
+
+      @Override
+      public void onEndReached () {
+        if (channelSearchAdapter.getItems().isEmpty() || channelSearchAdapter.getItems().size() == 1) {
+          channelSearchAdapter.setItems(new ListItem[] {
+            new ListItem(ListItem.TYPE_EMPTY, 0, 0, R.string.NothingFound)
+          }, false);
+        }
+      }
+    });
+    channelSearchManager.setSearchFlags(SearchManager.FLAG_NEED_GLOBAL_SEARCH | SearchManager.FLAG_CUSTOM_FILTER);
+  }
+
+  private void setChannelSearchItems () {
+    ArrayList<ListItem> items = new ArrayList<>();
+    items.add(new ListItem(ListItem.TYPE_EMPTY_OFFSET_SMALL));
+    boolean first = addChannelSearchItems(items, channelLocalChats, true);
+    first = addChannelSearchItems(items, channelGlobalChats, first);
+    if (first) {
+      items.add(new ListItem(ListItem.TYPE_EMPTY, 0, 0, R.string.NothingFound));
+    }
+    channelSearchAdapter.setItems(items, false);
+  }
+
+  private boolean addChannelSearchItems (ArrayList<ListItem> items, @Nullable ArrayList<TGFoundChat> chats, boolean first) {
+    if (chats != null && !chats.isEmpty()) {
+      for (TGFoundChat chat : chats) {
+        if (first) {
+          first = false;
+        } else {
+          items.add(new ListItem(ListItem.TYPE_SEPARATOR));
+        }
+        items.add(searchValueOf(R.id.search_chat_global, chat, false));
+      }
+    }
+    return first;
+  }
+
+  private void generateDownloadsSearchView () {
+    downloadsSearchView = newSearchRecyclerView();
+    DefaultItemAnimator itemAnimator = new DefaultItemAnimator();
+    itemAnimator.setSupportsChangeAnimations(false);
+    downloadsSearchView.setItemAnimator(itemAnimator);
+    downloadsAdapter = new SettingsAdapter(this, v -> {
+      ListItem item = (ListItem) v.getTag();
+      if (item != null && item.getData() instanceof DownloadedFileItem) {
+        DownloadedFileItem file = (DownloadedFileItem) item.getData();
+        if (inSelectMode()) {
+          toggleSelectedDownload(file);
+          return;
+        }
+        if (file.isActive()) {
+          downloadsSearchManager.togglePaused(file);
+        } else {
+          openDownloadedFile(file);
+        }
+      }
+    }, this) {
+      @Override
+      protected void setDownloadedFileData (ListItem item, int position, DownloadedFileView view) {
+        DownloadedFileItem file = (DownloadedFileItem) item.getData();
+        view.setItem(file, isSelectedDownload(file), inSelectMode());
+      }
+    };
+    downloadsAdapter.setOnLongClickListener(v -> {
+      ListItem item = (ListItem) v.getTag();
+      if (item != null && item.getData() instanceof DownloadedFileItem) {
+        DownloadedFileItem file = (DownloadedFileItem) item.getData();
+        if (inSelectMode()) {
+          toggleSelectedDownload(file);
+        } else {
+          selectedDownloadItems.clear();
+          selectedDownloadItems.add(file);
+          updateDownloadItemSelection(file);
+          openSelectMode(selectedDownloadItems.size());
+        }
+        return true;
+      }
+      return false;
+    });
+    downloadsSearchView.setAdapter(downloadsAdapter);
+    downloadsSearchManager = new DownloadsSearchManager(tdlib, new DownloadsSearchManager.Listener() {
+      @Override
+      public void onDownloadsLoading () {
+        downloadsAdapter.setItems(new ListItem[] {new ListItem(ListItem.TYPE_PROGRESS)}, false);
+      }
+
+      @Override
+      public void onDownloadsChanged (@NonNull List<DownloadedFileItem> active, @NonNull List<DownloadedFileItem> completed) {
+        setDownloadsItems(active, completed);
+      }
+
+      @Override
+      public void onDownloadUpdated (@NonNull DownloadedFileItem item) {
+        updateDownloadItem(item);
+      }
+
+      @Override
+      public void onDownloadsError () {
+        UI.showToast(R.string.Error, Toast.LENGTH_SHORT);
+      }
+    });
+  }
+
+  private void setDownloadsItems (@NonNull List<DownloadedFileItem> active, @NonNull List<DownloadedFileItem> completed) {
+    ArrayList<ListItem> items = downloadsTempItems;
+    items.clear();
+    items.add(new ListItem(ListItem.TYPE_EMPTY_OFFSET_SMALL));
+    addDownloadsSection(items, R.string.DownloadingFiles, active, DOWNLOADS_ACTIVE_SECTION_ID);
+    addDownloadsSection(items, R.string.RecentlyDownloaded, completed, DOWNLOADS_COMPLETED_SECTION_ID);
+    if (items.size() == 1) {
+      items.add(new ListItem(ListItem.TYPE_EMPTY, 0, 0, R.string.NothingFound));
+    }
+    updateDownloadsItems(items);
+    items.clear();
+  }
+
+  private void updateDownloadsItems (@NonNull List<ListItem> newItems) {
+    retainSelectedDownloads(newItems);
+    List<ListItem> oldItems = downloadsAdapter.getItems();
+    if (oldItems.isEmpty()) {
+      downloadsAdapter.setItems(new ArrayList<>(newItems), false);
+      return;
+    }
+    ArrayList<ListItem> oldItemsCopy = new ArrayList<>(oldItems);
+    DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ListItemDiffUtilCallback(oldItemsCopy, newItems) {
+      @Override
+      public boolean areItemsTheSame (ListItem oldItem, ListItem newItem) {
+        if (oldItem.getViewType() != newItem.getViewType() || oldItem.getId() != newItem.getId()) {
+          return false;
+        }
+        if (oldItem.getViewType() == ListItem.TYPE_DOWNLOADED_FILE ||
+            oldItem.getViewType() == ListItem.TYPE_HEADER ||
+            oldItem.getViewType() == ListItem.TYPE_SHADOW_TOP ||
+            oldItem.getViewType() == ListItem.TYPE_SHADOW_BOTTOM ||
+            oldItem.getViewType() == ListItem.TYPE_SEPARATOR) {
+          return oldItem.getLongId() == newItem.getLongId();
+        }
+        return oldItem.getStringResource() == newItem.getStringResource();
+      }
+
+      @Override
+      public boolean areContentsTheSame (ListItem oldItem, ListItem newItem) {
+        if (oldItem.getViewType() == ListItem.TYPE_DOWNLOADED_FILE) {
+          Object oldData = oldItem.getData();
+          Object newData = newItem.getData();
+          return oldData instanceof DownloadedFileItem && newData instanceof DownloadedFileItem &&
+            ((DownloadedFileItem) oldData).isSameContent((DownloadedFileItem) newData);
+        }
+        return oldItem.getStringResource() == newItem.getStringResource();
+      }
+    });
+    oldItems.clear();
+    oldItems.addAll(newItems);
+    diffResult.dispatchUpdatesTo(downloadsAdapter);
+  }
+
+  private void updateDownloadItem (@NonNull DownloadedFileItem item) {
+    int selectedIndex = indexOfSelectedDownload(item.fileId);
+    if (selectedIndex != -1) {
+      selectedDownloadItems.set(selectedIndex, item);
+    }
+    int index = downloadsAdapter.indexOfViewByLongId(item.fileId);
+    if (index != -1) {
+      ListItem listItem = downloadsAdapter.getItems().get(index);
+      if (listItem.getData() instanceof DownloadedFileItem) {
+        listItem.setData(item);
+        View view = downloadsSearchView.getLayoutManager().findViewByPosition(index);
+        if (view instanceof DownloadedFileView) {
+          ((DownloadedFileView) view).setItem(item, selectedIndex != -1, inSelectMode());
+        }
+      }
+    }
+  }
+
+  private int indexOfSelectedDownload (int fileId) {
+    for (int i = 0; i < selectedDownloadItems.size(); i++) {
+      if (selectedDownloadItems.get(i).fileId == fileId) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private boolean isSelectedDownload (@Nullable DownloadedFileItem item) {
+    return item != null && indexOfSelectedDownload(item.fileId) != -1;
+  }
+
+  private @Nullable DownloadedFileItem getFirstSelectedDownload () {
+    return selectedDownloadItems.isEmpty() ? null : selectedDownloadItems.get(0);
+  }
+
+  private ArrayList<DownloadedFileItem> copySelectedDownloads () {
+    return new ArrayList<>(selectedDownloadItems);
+  }
+
+  private void toggleSelectedDownload (@NonNull DownloadedFileItem item) {
+    int index = indexOfSelectedDownload(item.fileId);
+    if (index != -1) {
+      selectedDownloadItems.remove(index);
+    } else {
+      selectedDownloadItems.add(item);
+    }
+    updateDownloadItemSelection(item);
+    if (selectedDownloadItems.isEmpty()) {
+      closeSelectMode();
+    } else {
+      setSelectedCount(selectedDownloadItems.size());
+    }
+  }
+
+  private void updateDownloadItemSelection (@NonNull DownloadedFileItem item) {
+    if (downloadsAdapter != null) {
+      int index = downloadsAdapter.indexOfViewByLongId(item.fileId);
+      if (index != -1) {
+        downloadsAdapter.notifyItemChanged(index);
+      }
+    }
+  }
+
+  private void updateDownloadItemsSelection () {
+    if (downloadsAdapter != null && downloadsAdapter.getItemCount() > 0) {
+      downloadsAdapter.notifyItemRangeChanged(0, downloadsAdapter.getItemCount());
+    }
+  }
+
+  private void retainSelectedDownloads (@NonNull List<ListItem> items) {
+    if (selectedDownloadItems.isEmpty()) {
+      return;
+    }
+    for (int i = selectedDownloadItems.size() - 1; i >= 0; i--) {
+      DownloadedFileItem selectedItem = selectedDownloadItems.get(i);
+      DownloadedFileItem currentItem = findDownloadItem(items, selectedItem.fileId);
+      if (currentItem != null) {
+        selectedDownloadItems.set(i, currentItem);
+      } else {
+        selectedDownloadItems.remove(i);
+      }
+    }
+    if (inSelectMode()) {
+      if (selectedDownloadItems.isEmpty()) {
+        closeSelectMode();
+      } else {
+        setSelectedCount(selectedDownloadItems.size());
+      }
+    }
+  }
+
+  private static @Nullable DownloadedFileItem findDownloadItem (@NonNull List<ListItem> items, int fileId) {
+    for (ListItem item : items) {
+      if (item.getViewType() == ListItem.TYPE_DOWNLOADED_FILE && item.getData() instanceof DownloadedFileItem) {
+        DownloadedFileItem file = (DownloadedFileItem) item.getData();
+        if (file.fileId == fileId) {
+          return file;
+        }
+      }
+    }
+    return null;
+  }
+
+  private void addDownloadsSection (ArrayList<ListItem> items, @StringRes int title, @NonNull List<DownloadedFileItem> files, long sectionId) {
+    if (files.isEmpty()) {
+      return;
+    }
+    items.add(new ListItem(ListItem.TYPE_HEADER, 0, 0, title).setLongId(sectionId));
+    items.add(new ListItem(ListItem.TYPE_SHADOW_TOP).setLongId(sectionId - 1));
+    for (DownloadedFileItem file : files) {
+      items.add(new ListItem(ListItem.TYPE_DOWNLOADED_FILE, R.id.btn_downloadFile).setData(file).setLongId(file.fileId));
+    }
+    items.add(new ListItem(ListItem.TYPE_SHADOW_BOTTOM).setLongId(sectionId - 2));
+  }
+
+  private void setSearchTab (int tab) {
+    if (searchTab == tab) {
+      return;
+    }
+    searchTab = tab;
+    if (searchTab == SEARCH_TAB_DOWNLOADS) {
+      refreshDownloadsSearch();
+    } else {
+      if (!selectedDownloadItems.isEmpty()) {
+        closeSelectMode();
+      }
+      onSearchInputChanged(getLastSearchInput());
+    }
+  }
+
+  private void refreshDownloadsSearch () {
+    if (downloadsSearchManager != null) {
+      downloadsSearchManager.search(getLastSearchInput());
+    }
+  }
+
+  private void openDownloadedFile (@NonNull DownloadedFileItem item) {
+    if (StringUtils.isEmpty(item.localPath)) {
+      UI.showToast(R.string.Error, Toast.LENGTH_SHORT);
+      if (downloadsSearchManager != null) {
+        downloadsSearchManager.refresh();
+      }
+      return;
+    }
+    if (shouldOpenDownloadedFileExternally(item)) {
+      if (!Intents.openFile(context(), new File(item.localPath), item.mimeType)) {
+        UI.showToast(R.string.NoAppToOpen, Toast.LENGTH_SHORT);
+      }
+      return;
+    }
+    if (item.message != null) {
+      Background.instance().post(() -> {
+        MediaItem mediaItem = MediaItem.valueOf(context(), tdlib, item.message);
+        runOnUiThreadOptional(() -> {
+          if (mediaItem != null) {
+            boolean isDocument = item.message.content != null && item.message.content.getConstructor() == TdApi.MessageDocument.CONSTRUCTOR;
+            if (isDocument) {
+              openSingleDownloadedMedia(mediaItem);
+            } else {
+              MediaViewController.openFromMedia(this, mediaItem, null, false);
+            }
+          } else {
+            U.openFile(this, item.title, new File(item.localPath), item.mimeType, 0);
+          }
+        });
+      });
+      return;
+    }
+    U.openFile(this, item.title, new File(item.localPath), item.mimeType, 0);
+  }
+
+  private boolean shouldOpenDownloadedFileExternally (@NonNull DownloadedFileItem item) {
+    String extension = U.getExtension(item.localPath);
+    return "mp4".equalsIgnoreCase(extension) ||
+      "video/mp4".equals(item.mimeType) ||
+      "application/mp4".equals(item.mimeType) ||
+      TGMimeType.isPlainTextExtension(extension) ||
+      TGMimeType.isPlainTextMimeType(item.mimeType);
+  }
+
+  private void openSingleDownloadedMedia (@NonNull MediaItem mediaItem) {
+    MediaStack stack = new MediaStack(context(), tdlib);
+    stack.set(MediaItem.copyOf(mediaItem));
+    MediaViewController.openWithStack(this, stack, null, null, true);
+  }
+
+  private void openDownloadSource (@Nullable DownloadedFileItem item) {
+    if (headerView == null || headerView.isAnimating() || !inSelectMode()) {
+      return;
+    }
+    if (item == null || item.message == null) {
+      UI.showToast(R.string.Error, Toast.LENGTH_SHORT);
+      closeSelectMode();
+      return;
+    }
+    TdApi.Message message = item.message;
+    preventLeavingSearchMode();
+    headerView.closeSelectMode(false, false);
+    tdlib.ui().openChat(
+      this,
+      message.chatId,
+      new TdlibUi.ChatOpenParameters()
+        .keepStack()
+        .highlightMessage(message)
+        .openAnimationTimeout(200l)
+    );
+  }
+
+  private void shareDownloadSources (@NonNull List<DownloadedFileItem> items) {
+    ArrayList<TdApi.Message> messages = new ArrayList<>();
+    for (DownloadedFileItem item : items) {
+      if (item.message != null) {
+        messages.add(item.message);
+      }
+    }
+    if (messages.isEmpty()) {
+      UI.showToast(R.string.Error, Toast.LENGTH_SHORT);
+      return;
+    }
+    ShareController c = new ShareController(context, tdlib);
+    c.setArguments(new ShareController.Args(messages.toArray(new TdApi.Message[0])).setAfter(this::closeSelectMode));
+    c.show();
+  }
+
+  private void confirmRemoveDownloadSources (@NonNull ArrayList<DownloadedFileItem> items) {
+    showOptions(new Options.Builder()
+      .title(Lang.plural(R.string.RemoveDocumentsTitle, items.size()))
+      .info(new SpannableStringBuilder()
+        .append(Lang.getMarkdownPlural(this, R.string.RemoveDocumentsMessage, items.size()))
+        .append("\n\n")
+        .append(Lang.getString(R.string.RemoveDocumentsAlertMessage)))
+      .item(new OptionItem.Builder()
+        .id(R.id.btn_delete)
+        .name(Lang.getString(R.string.Delete))
+        .color(OptionColor.RED)
+        .icon(R.drawable.baseline_delete_24)
+        .build())
+      .item(new OptionItem.Builder()
+        .id(R.id.btn_cancel)
+        .name(Lang.getString(R.string.Cancel))
+        .icon(R.drawable.baseline_cancel_24)
+        .build())
+      .build(), (itemView, id) -> {
+        if (id == R.id.btn_delete) {
+          closeSelectMode();
+          downloadsSearchManager.remove(items);
+        }
+        return true;
+      });
+  }
+
+  @Override
+  protected int getSelectMenuId () {
+    int menuId = getDownloadSelectMenuId();
+    return menuId != 0 ? menuId : super.getSelectMenuId();
+  }
+
+  protected int getDownloadSelectMenuId () {
+    return !selectedDownloadItems.isEmpty() ? R.id.menu_downloadActions : 0;
+  }
+
+  @Override
+  protected int getSelectTextColorId () {
+    return !selectedDownloadItems.isEmpty() ? getSearchHeaderIconColorId() : super.getSelectTextColorId();
+  }
+
+  @Override
+  protected int getSelectHeaderIconColorId () {
+    return !selectedDownloadItems.isEmpty() ? getSearchHeaderIconColorId() : super.getSelectHeaderIconColorId();
+  }
+
+  protected boolean fillDownloadMenuItems (int id, HeaderView header, LinearLayout menu) {
+    if (id == R.id.menu_downloadActions) {
+      int iconColorId = getSelectHeaderIconColorId();
+      header.addButton(menu, R.id.menu_btn_view, R.drawable.baseline_visibility_24, 52f, this, iconColorId)
+        .setVisibility(selectedDownloadItems.size() == 1 ? View.VISIBLE : View.GONE);
+      header.addForwardButton(menu, this, iconColorId);
+      header.addDeleteButton(menu, this, iconColorId);
+      return true;
+    }
+    return false;
+  }
+
+  protected boolean onDownloadMenuItemPressed (int id) {
+    if (id == R.id.menu_btn_view) {
+      if (selectedDownloadItems.size() == 1) {
+        openDownloadSource(getFirstSelectedDownload());
+      }
+      return true;
+    } else if (!selectedDownloadItems.isEmpty() && id == R.id.menu_btn_forward) {
+      shareDownloadSources(copySelectedDownloads());
+      return true;
+    } else if (!selectedDownloadItems.isEmpty() && id == R.id.menu_btn_delete) {
+      confirmRemoveDownloadSources(copySelectedDownloads());
+      return true;
+    }
+    return false;
+  }
+
   protected final void forceOpenChatSearch (String query) {
     // enterSearchMode();
     if (chatSearchView.getAdapter() == null)
@@ -1048,7 +1744,21 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   @CallSuper
   protected void handleLanguageDirectionChange () {
     super.handleLanguageDirectionChange();
-    Views.setScrollBarPosition(chatSearchView);
+    if (chatSearchView != null) {
+      Views.setScrollBarPosition(chatSearchView);
+    }
+    if (channelSearchView != null) {
+      Views.setScrollBarPosition(channelSearchView);
+    }
+    if (downloadsSearchView != null) {
+      Views.setScrollBarPosition(downloadsSearchView);
+    }
+    if (searchTabsView != null) {
+      searchTabsView.checkRtl();
+    }
+    if (searchPager != null) {
+      searchPager.checkRtl();
+    }
   }
 
   @Override
@@ -1058,6 +1768,12 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
     if (chatSearchAdapter != null) {
       chatSearchAdapter.onLanguagePackEvent(event, arg1);
     }
+    if (channelSearchAdapter != null) {
+      channelSearchAdapter.onLanguagePackEvent(event, arg1);
+    }
+    if (downloadsAdapter != null) {
+      downloadsAdapter.onLanguagePackEvent(event, arg1);
+    }
   }
 
   @Override
@@ -1066,11 +1782,58 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
     super.onEnterSearchMode();
     if (chatSearchManager != null) {
       chatSearchManager.onOpen(getChatMessagesSearchChatList());
+      if (needSearchTabs() && searchTab == SEARCH_TAB_DOWNLOADS) {
+        refreshDownloadsSearch();
+      }
     }
   }
 
   @Override
+  @CallSuper
+  protected void onEnterSelectMode () {
+    super.onEnterSelectMode();
+    if (!selectedDownloadItems.isEmpty()) {
+      if (searchPager != null) {
+        searchPager.setPagingEnabled(false);
+      }
+      updateDownloadItemsSelection();
+    }
+  }
+
+  @Override
+  protected void onSelectedCountChanged (int count) {
+    super.onSelectedCountChanged(count);
+    if (headerView != null && !selectedDownloadItems.isEmpty()) {
+      headerView.updateCustomButton(
+        R.id.menu_downloadActions,
+        R.id.menu_btn_view,
+        view -> view.setVisibility(count == 1 ? View.VISIBLE : View.GONE)
+      );
+    }
+  }
+
+  @Override
+  @CallSuper
+  public void onLeaveSelectMode () {
+    super.onLeaveSelectMode();
+    if (searchPager != null) {
+      searchPager.setPagingEnabled(true);
+    }
+    selectedDownloadItems.clear();
+    updateDownloadItemsSelection();
+  }
+
+  @Override
   protected void startHeaderTransformAnimator (ValueAnimator animator, int mode, boolean open) {
+    if (mode == HeaderView.TRANSFORM_MODE_SELECT && !open && !selectedDownloadItems.isEmpty()) {
+      animator.addListener(new AnimatorListenerAdapter() {
+        @Override
+        public void onAnimationStart (Animator animation) {
+          selectedDownloadItems.clear();
+          updateDownloadItemsSelection();
+        }
+      });
+    }
     if (chatSearchView != null && chatSearchView.getAdapter() == null && mode == HeaderView.TRANSFORM_MODE_SEARCH && open) {
       animator.addListener(new AnimatorListenerAdapter() {
         @Override
@@ -1078,7 +1841,7 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
           onChatSearchOpenStarted();
         }
       });
-      AnimatorUtils.startAnimator(chatSearchView, animator, true);
+      AnimatorUtils.startAnimator(chatSearchContentView != null ? chatSearchContentView : chatSearchView, animator, true);
       chatSearchView.setAdapter(chatSearchAdapter);
       return;
     }
@@ -1092,7 +1855,7 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   protected void applySearchTransformFactor (float factor, boolean isOpening) {
     super.applySearchTransformFactor(factor, isOpening);
     if (chatSearchManager != null) {
-      chatSearchView.setAlpha(factor);
+      (chatSearchContentView != null ? chatSearchContentView : chatSearchView).setAlpha(factor);
       setSearchAntagonistHidden(factor == 1f);
       setSearchContentVisible(factor != 0f);
       // setNeedPreventKeyboardLag(factor != 0f && factor != 1f);
@@ -1130,7 +1893,18 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   protected void onSearchInputChanged (String input) {
     super.onSearchInputChanged(input);
     if (chatSearchManager != null) {
-      chatSearchManager.onQueryChanged(getChatMessagesSearchChatList(), input);
+      if (needSearchTabs() && searchTab == SEARCH_TAB_DOWNLOADS) {
+        if (downloadsSearchManager != null) {
+          downloadsSearchManager.search(input);
+        }
+      } else if (needSearchTabs() && searchTab == SEARCH_TAB_CHANNELS) {
+        if (channelSearchManager != null) {
+          channelSearchManager.onOpen(getChatMessagesSearchChatList());
+          channelSearchManager.onQueryChanged(getChatMessagesSearchChatList(), input);
+        }
+      } else {
+        chatSearchManager.onQueryChanged(getChatMessagesSearchChatList(), input);
+      }
     }
   }
 
@@ -1145,6 +1919,16 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
     super.onAfterLeaveSearchMode();
     if (chatSearchManager != null) {
       chatSearchManager.onClose(getChatMessagesSearchChatList());
+      if (channelSearchManager != null) {
+        channelSearchManager.onClose(getChatMessagesSearchChatList());
+      }
+      if (downloadsSearchManager != null) {
+        downloadsSearchManager.cancel();
+      }
+      if (searchPager != null) {
+        searchPager.setPagingEnabled(true);
+      }
+      selectedDownloadItems.clear();
       clearSearchInput();
     }
   }
@@ -1152,12 +1936,27 @@ public abstract class TelegramViewController<T> extends ViewController<T> {
   @Override
   public void destroy () {
     super.destroy();
+    if (searchPager != null) {
+      searchPager.setAdapter(null);
+    }
+    if (searchTabsView != null) {
+      searchTabsView.performDestroy();
+    }
     if (chatSearchManager != null) {
       TGLegacyManager.instance().removeEmojiListener(chatSearchAdapter);
       Views.destroyRecyclerView(chatSearchView);
     }
     if (chatSearchViewport != null) {
       chatSearchViewport.performDestroy();
+    }
+    if (channelSearchView != null) {
+      Views.destroyRecyclerView(channelSearchView);
+    }
+    if (downloadsSearchView != null) {
+      Views.destroyRecyclerView(downloadsSearchView);
+    }
+    if (downloadsSearchManager != null) {
+      downloadsSearchManager.destroy();
     }
   }
 }

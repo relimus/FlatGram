@@ -785,7 +785,7 @@ public class FileProgressComponent implements TdlibFilesManager.FileListener, Fa
     switch (currentState) {
       case TdlibFilesManager.STATE_PAUSED: {
         if (file != null) {
-          tdlib.files().downloadFile(file);
+          tdlib.files().downloadFileFromMessage(file, chatId, messageId);
           return true;
         }
         break;

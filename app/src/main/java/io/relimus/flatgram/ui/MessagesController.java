@@ -1930,6 +1930,17 @@ public class MessagesController extends ViewController<MessagesController.Argume
     return manager != null && !manager.isTotallyEmpty() && manager.getAdapter().getMessageCount() == 0;
   }
 
+  private long openAnimationTimeout = -1l;
+
+  public void setOpenAnimationTimeout (long timeout) {
+    this.openAnimationTimeout = timeout;
+  }
+
+  @Override
+  public long getAsynchronousAnimationTimeout (boolean fastAnimation) {
+    return openAnimationTimeout >= 0 ? openAnimationTimeout : super.getAsynchronousAnimationTimeout(fastAnimation);
+  }
+
   private void openLinkedChat (boolean directMessages) {
     if (messageThread != null && messageThread.getChatId() != 0 && messageThread.getChatId() != messageThread.getContextChatId()) {
       tdlib.ui().openChat(this, messageThread.getChatId(), new TdlibUi.ChatOpenParameters().keepStack().removeDuplicates());
@@ -5838,7 +5849,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         }
         TdApi.File file = TD.getFile(selectedMessage);
         if (file != null && !file.local.isDownloadingActive && !file.local.isDownloadingCompleted) {
-          tdlib.files().downloadFile(file);
+          tdlib.files().downloadFileFromMessage(file, selectedMessage.getChatId(), selectedMessage.getId());
         }
         return true;
       } else if (id == R.id.btn_pauseFile) {

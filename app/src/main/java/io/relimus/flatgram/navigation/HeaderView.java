@@ -1261,7 +1261,13 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
 
     translateForward = forward;
     if (right == null) {
-      preview = forward ? left.getTransformHeaderView(this) : left.getCustomHeaderCell();
+      if (forward) {
+        preview = left.getTransformHeaderView(this);
+      } else if (transformMode == TRANSFORM_MODE_SELECT && selectModeOpenedFromSearch) {
+        preview = left.getSearchHeaderView(this).view();
+      } else {
+        preview = left.getCustomHeaderCell();
+      }
     } else {
       preview = previewItem == null ? null : previewItem.inTransformMode() ? previewItem.getTransformHeaderView(this) : previewItem.getCustomHeaderCell();
     }
@@ -1308,7 +1314,8 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
 
     int menuWidth = 0;
 
-    int leftMenuId = getMenuId(left, right != null);
+    boolean selectOverSearch = right == null && transformMode == TRANSFORM_MODE_SELECT && selectModeOpenedFromSearch && left.inSearchMode();
+    int leftMenuId = selectOverSearch ? left.getSearchMenuId() : getMenuId(left, right != null);
     int rightMenuId = right == null ? getTransformMenuId(left) : getMenuId(right, true);
     int previewMenuId = forward ? rightMenuId : leftMenuId;
 
@@ -1729,6 +1736,7 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
   }
 
   private int transformMode;
+  private boolean selectModeOpenedFromSearch;
 
   private void transform (final ViewController<?> controller, final int mode, int arg, final boolean open, boolean animated, final Runnable after) {
     transform(controller, mode, arg, open, animated, after, true);
@@ -1776,6 +1784,7 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
             case TRANSFORM_MODE_SELECT: {
               controller.leaveSelectMode();
               controller.onLeaveSelectMode();
+              selectModeOpenedFromSearch = false;
               break;
             }
             case TRANSFORM_MODE_SEARCH: {
@@ -1871,7 +1880,7 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
 
   public int getCurrentTransformMode () {
     ViewController<?> c = stack.getCurrent();
-    return c == null ? TRANSFORM_MODE_NONE : c.inSearchMode() ? TRANSFORM_MODE_SEARCH : c.inSelectMode() ? TRANSFORM_MODE_SELECT : TRANSFORM_MODE_NONE;
+    return c == null ? TRANSFORM_MODE_NONE : c.inSelectMode() ? TRANSFORM_MODE_SELECT : c.inSearchMode() ? TRANSFORM_MODE_SEARCH : TRANSFORM_MODE_NONE;
   }
 
   // Select mode
@@ -1879,11 +1888,15 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
   public void openSelectMode (int startCount, boolean animated) {
     final ViewController<?> controller = stack.getCurrent();
 
-    if (isAnimating || controller == null || controller.inSelectMode() || controller.inSearchMode()) {
+    if (isAnimating || controller == null || controller.inSelectMode() || controller.inCustomMode()) {
       return;
     }
 
     isAnimating = true;
+    selectModeOpenedFromSearch = controller.inSearchMode();
+    if (selectModeOpenedFromSearch) {
+      controller.hideSoftwareKeyboard();
+    }
     controller.enterSelectMode();
     translationFactor = 1f;
 
@@ -2295,11 +2308,12 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
 
     int transformMode = getTransformMode(left);
     boolean inTransformMode = right == null && transformMode != TRANSFORM_MODE_NONE;
+    boolean selectOverSearch = inTransformMode && transformMode == TRANSFORM_MODE_SELECT && selectModeOpenedFromSearch && left.inSearchMode();
 
-    int leftMenuId = getMenuId(left, !inTransformMode);
+    int leftMenuId = selectOverSearch ? left.getSearchMenuId() : getMenuId(left, !inTransformMode);
     int rightMenuId = right == null ? getTransformMenuId(left) : getMenuId(right, inTransformMode);
 
-    int leftBackButton = getBackButton(left, !inTransformMode);
+    int leftBackButton = selectOverSearch ? left.getSearchBackButton() : getBackButton(left, !inTransformMode);
     int rightBackButton = inTransformMode ? (transformMode == TRANSFORM_MODE_SEARCH ? left.getSearchBackButton() : transformMode == TRANSFORM_MODE_CUSTOM ? BackHeaderButton.TYPE_BACK : BackHeaderButton.TYPE_CLOSE) : getBackButton(right, true);
 
     if (forward) {
@@ -2476,8 +2490,15 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
 
     final int baseColor, previewColor;
 
-    baseColor = inTransformMode && !forward ? getHeaderColor(left, true) : baseIsPopup ? ColorUtils.color(0, Theme.headerColor()) : getHeaderColor(baseItem, !inTransformMode);
-    previewColor = inTransformMode && forward ? getHeaderColor(left, true) : previewIsPopup ? ColorUtils.color(0, Theme.headerColor()) : getHeaderColor(previewItem, !inTransformMode);
+    if (selectOverSearch) {
+      int leftHeaderColor = left.getSearchHeaderColor();
+      int rightHeaderColor = left.getSelectHeaderColor();
+      baseColor = forward ? leftHeaderColor : rightHeaderColor;
+      previewColor = forward ? rightHeaderColor : leftHeaderColor;
+    } else {
+      baseColor = inTransformMode && !forward ? getHeaderColor(left, true) : baseIsPopup ? ColorUtils.color(0, Theme.headerColor()) : getHeaderColor(baseItem, !inTransformMode);
+      previewColor = inTransformMode && forward ? getHeaderColor(left, true) : previewIsPopup ? ColorUtils.color(0, Theme.headerColor()) : getHeaderColor(previewItem, !inTransformMode);
+    }
 
     if (baseColor != previewColor) {
       useColorSwitch = true;
@@ -2494,8 +2515,8 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
       getFilling().setColor(forward ? baseColor : previewColor);
     }
 
-    int leftHeaderTextColor = inTransformMode && !forward ? getHeaderTextColor(left, false) : getHeaderTextColor(left, !inTransformMode);
-    int rightHeaderTextColor = inTransformMode && forward ? getHeaderTextColor(left, true) : getHeaderTextColor(right, !inTransformMode);
+    int leftHeaderTextColor = selectOverSearch ? left.getSearchTextColor() : inTransformMode && !forward ? getHeaderTextColor(left, false) : getHeaderTextColor(left, !inTransformMode);
+    int rightHeaderTextColor = selectOverSearch ? Theme.getColor(left.getSelectTextColorId()) : inTransformMode && forward ? getHeaderTextColor(left, true) : getHeaderTextColor(right, !inTransformMode);
     int baseTextColor = forward ? leftHeaderTextColor : rightHeaderTextColor;
     int previewTextColor = forward ? rightHeaderTextColor : leftHeaderTextColor;
     boolean previewInSelect = previewItem != null && previewItem.inSelectMode();
@@ -2563,8 +2584,8 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
       }
     }
 
-    int leftBackColor = getBackButtonColor(left, !inTransformMode);
-    int rightBackColor = inTransformMode ? getBackButtonColor(left, true) : getBackButtonColor(right, !inTransformMode);
+    int leftBackColor = selectOverSearch ? left.getSearchHeaderIconColor() : getBackButtonColor(left, !inTransformMode);
+    int rightBackColor = selectOverSearch ? left.getSelectHeaderIconColor() : inTransformMode ? getBackButtonColor(left, true) : getBackButtonColor(right, !inTransformMode);
 
     if (leftBackColor != rightBackColor) {
       int baseBackColor = forward ? leftBackColor : rightBackColor;
@@ -2777,11 +2798,11 @@ public class HeaderView extends FrameLayoutFix implements View.OnClickListener, 
       return Theme.headerBackColor();
     }
     if (allowTransform) {
-      if (c.inSearchMode()) {
-        return c.getSearchHeaderIconColor();
-      }
       if (c.inSelectMode()) {
         return c.getSelectHeaderIconColor();
+      }
+      if (c.inSearchMode()) {
+        return c.getSearchHeaderIconColor();
       }
     }
     return c.getHeaderIconColor();

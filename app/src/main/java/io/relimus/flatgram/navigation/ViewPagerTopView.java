@@ -891,15 +891,17 @@ public class ViewPagerTopView extends FrameLayoutFix implements RtlCheckListener
       selectionWidth = commonItemWidth;
     }
 
+    boolean hasPendingUserInteraction =
+      selectionChangeListener != null && selectionChangeListener.hasPendingUserInteraction();
     boolean callListener;
     if (set) {
       if (this.selectionLeft != selectionLeft || this.selectionWidth != selectionWidth) {
         this.selectionLeft = selectionLeft;
         this.selectionWidth = selectionWidth;
       }
-      callListener = (fromIndex == -1 && toIndex == -1) || (fromIndex != -1 && toIndex != -1 && Math.abs(toIndex - fromIndex) == 1 && !selectionChangeListener.hasPendingUserInteraction());
+      callListener = (fromIndex == -1 && toIndex == -1) || (fromIndex != -1 && toIndex != -1 && Math.abs(toIndex - fromIndex) == 1 && !hasPendingUserInteraction);
     } else {
-      callListener = fromIndex != -1 && toIndex != -1 && (Math.abs(toIndex - fromIndex) > 1 || selectionChangeListener.hasPendingUserInteraction());
+      callListener = fromIndex != -1 && toIndex != -1 && (Math.abs(toIndex - fromIndex) > 1 || hasPendingUserInteraction);
     }
     float totalFactor = items.size() > 1 ? selectionFactor / (float) (items.size() - 1) : 0;
     if (callListener && selectionChangeListener != null && (lastCallSelectionLeft != selectionLeft || lastCallSelectionWidth != selectionWidth || lastCallSelectionFactor != totalFactor || ((showLabelOnActiveOnly || animateItemChanges) && set))) {
@@ -943,7 +945,10 @@ public class ViewPagerTopView extends FrameLayoutFix implements RtlCheckListener
     if (this.selectionFactor != factor) {
       this.selectionFactor = factor;
       if (toIndex != -1 && (int) factor == toIndex && factor % 1f == 0) {
-        fromIndex = toIndex = -1; selectionChangeListener.resetUserInteraction();
+        fromIndex = toIndex = -1;
+        if (selectionChangeListener != null) {
+          selectionChangeListener.resetUserInteraction();
+        }
       }
 
       recalculateSelection(selectionFactor, true);

@@ -1717,6 +1717,7 @@ public class TdlibUi extends Handler {
     public RunnableLong after;
     public Runnable onDone;
     public Object shareItem;
+    public long openAnimationTimeout = -1l;
 
     public boolean highlightSet;
     public int highlightMode;
@@ -1748,6 +1749,8 @@ public class TdlibUi extends Handler {
         return false;
       if (options != 0)
         outState.putInt(keyPrefix + "cp_options", options);
+      if (openAnimationTimeout >= 0)
+        outState.putLong(keyPrefix + "cp_openAnimationTimeout", openAnimationTimeout);
       if (highlightSet)
         outState.putBoolean(keyPrefix + "cp_highlightSet", highlightSet);
       if (highlightMode != 0)
@@ -1766,6 +1769,7 @@ public class TdlibUi extends Handler {
     public static @Nullable ChatOpenParameters restoreInstanceState (Tdlib tdlib, Bundle in, String keyPrefix) {
       ChatOpenParameters params = new ChatOpenParameters();
       params.options = in.getInt(keyPrefix + "cp_options", 0);
+      params.openAnimationTimeout = in.getLong(keyPrefix + "cp_openAnimationTimeout", -1l);
       params.highlightSet = in.getBoolean(keyPrefix + "cp_highlightSet", false);
       params.highlightMode = in.getInt(keyPrefix + "cp_highlightMode", 0);
       params.highlightMessageId = TD.restoreMessageId(in, keyPrefix + "cp_highlightMessageId");
@@ -1870,6 +1874,11 @@ public class TdlibUi extends Handler {
 
     public ChatOpenParameters onDone (Runnable onDone) {
       this.onDone = onDone;
+      return this;
+    }
+
+    public ChatOpenParameters openAnimationTimeout (long timeout) {
+      this.openAnimationTimeout = timeout;
       return this;
     }
 
@@ -2219,6 +2228,7 @@ public class TdlibUi extends Handler {
     }
 
     controller.setShareItem(shareItem);
+    controller.setOpenAnimationTimeout(params != null ? params.openAnimationTimeout : -1l);
     if (params != null && (params.options & CHAT_OPTION_PASSCODE_UNLOCKED) != 0) {
       controller.addOneShotFocusListener(() -> {
         ViewController<?> prevStackItem = controller.stackItemAt(controller.stackSize() - 2);

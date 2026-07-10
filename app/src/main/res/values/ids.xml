@@ -32,6 +32,7 @@
   <item type="id" name="menu_secretChat" />
   <item type="id" name="menu_chat" />
   <item type="id" name="menu_chatBulkActions" />
+  <item type="id" name="menu_downloadActions" />
   <item type="id" name="menu_search" />
   <item type="id" name="menu_archive" />
   <item type="id" name="menu_clear" />

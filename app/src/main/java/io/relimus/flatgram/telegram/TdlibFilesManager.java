@@ -805,6 +805,34 @@ public class TdlibFilesManager implements GlobalConnectionListener {
     }
   }
 
+  public void downloadFileFromMessage (@NonNull TdApi.File file, long chatId, long messageId) {
+    downloadFileFromMessage(file, chatId, messageId, PRIORITY_USER_REQUEST_DOWNLOAD, null);
+  }
+
+  public void downloadFileFromMessage (@NonNull TdApi.File file, long chatId, long messageId, @IntRange(from = 1, to = 32) int priority, @Nullable Tdlib.ResultHandler<TdApi.File> handler) {
+    synchronized (this) {
+      manuallyCancelledFiles.remove(file.id);
+      if (TD.isFileLoaded(file)) {
+        if (handler != null) {
+          tdlib.send(downloadFile(file.id, priority, 0, LIMIT_MAX, false), handler);
+        }
+      } else if (chatId != 0 && messageId != 0) {
+        tdlib.send(new TdApi.AddFileToDownloads(file.id, chatId, messageId, priority), (downloadedFile, error) -> {
+          if (error != null) {
+            downloadFile(file, priority, handler);
+            return;
+          }
+          fileHandler(file.id).onResult(downloadedFile, error);
+          if (handler != null) {
+            handler.onResult(downloadedFile, error);
+          }
+        });
+      } else {
+        downloadFileInternal(file.id, priority, 0, LIMIT_MAX, handler);
+      }
+    }
+  }
+
   public void isFileLoadedAndExists (TdApi.File file, RunnableBool after) {
     tdlib.runOnTdlibThread(() -> {
       boolean loadedAndExists = TD.isFileLoadedAndExists(file);

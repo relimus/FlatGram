@@ -845,6 +845,17 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
   }
 
   @Override
+  protected boolean needSearchTabs () {
+    return true;
+  }
+
+  @Override
+  protected int getSelectMenuId () {
+    int downloadMenuId = getDownloadSelectMenuId();
+    return downloadMenuId != 0 ? downloadMenuId : super.getSelectMenuId();
+  }
+
+  @Override
   protected TdApi.ChatList getChatMessagesSearchChatList () {
     ChatsController c = findChatsControllerForSearchMessages();
     if (c != null && TD.isChatListArchive(c.chatList())) {
@@ -1880,6 +1891,9 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
 
   @Override
   public void fillMenuItems (int id, HeaderView header, LinearLayout menu) {
+    if (fillDownloadMenuItems(id, header, menu)) {
+      return;
+    }
     if (id == R.id.menu_main) {
       header.addLockButton(menu);
       header.addSearchButton(menu, this);
@@ -1892,6 +1906,9 @@ public class MainController extends ViewPagerController<Void> implements Menu, M
 
   @Override
   public void onMenuItemPressed (int id, View view) {
+    if (onDownloadMenuItemPressed(id)) {
+      return;
+    }
     if (id == R.id.menu_btn_search) {
       tdlib.checkDeadlocks(() -> runOnUiThreadOptional(() -> {
         if (isFocused()) {
