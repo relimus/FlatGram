@@ -210,6 +210,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   private static final int FLAG_BEING_ADDED = 1 << 31;
 
   protected TdApi.Message msg;
+  private LongSet ayuDeletedMessageIds;
   protected final TdApi.SponsoredMessage sponsoredMessage;
   private int flags;
 
@@ -245,6 +246,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   private Counter shrinkedReactionsCounter, reactionsCounter;
   private final ReactionsCounterDrawable reactionsCounterDrawable;
   private final Counter isChannelHeaderCounter;
+  private FactorAnimator ayuDeletedPresentationAnimator;
+  private float ayuDeletedPresentationFactor = 1f;
+  private int ayuDeletedPresentationFromStyle, ayuDeletedPresentationToStyle;
+  private boolean ayuDeletedPresentationFromTranslucent, ayuDeletedPresentationToTranslucent;
 
   private boolean translatedCounterForceShow;
   private final Counter isTranslatedCounter;
@@ -349,11 +354,17 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     this.currentViews = new MultipleViewProvider();
     this.currentViews.setContentProvider(this);
     this.msg = msg;
+    if (tdlib.ayu().isDeleted(msg.chatId, msg.id)) {
+      ayuDeletedMessageIds = new LongSet(1);
+      ayuDeletedMessageIds.add(msg.id);
+    }
+    resetAyuDeletedPresentationState();
     this.sponsoredMessage = sponsoredMessage;
     this.flags |= BitwiseUtils.optional(FLAG_BELOW_ALL_MESSAGES, isBelowAllMessages);
     this.messageReactions = new TGReactions(this, tdlib, msg.interactionInfo != null ? msg.interactionInfo.reactions : null, new TGReactions.MessageReactionsDelegate() {
       @Override
       public void onClick (View v, TGReactions.MessageReactionEntry entry) {
+        if (hasAyuDeletedMessages()) return;
         boolean hasReaction = messageReactions.hasReaction(entry.getReactionType());
         if (Config.DISABLE_ANONYMOUS_NON_OWNER_REACTIONS && !hasReaction && tdlib.isAnonymousAdminNonCreator(msg.chatId)) {
           showReactionBubbleTooltip(v, entry, Lang.getString(R.string.error_ANONYMOUS_REACTIONS_DISABLED));
@@ -368,6 +379,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
 
       @Override
       public void onLongClick (View v, TGReactions.MessageReactionEntry entry) {
+        if (hasAyuDeletedMessages()) return;
         loadAvailableReactions(() -> {
           loadAllMessageProperties(() -> {
             if (canGetAddedReactions()) {
@@ -1945,6 +1957,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   public final void draw (MessageView view, Canvas c, @NonNull AvatarReceiver avatarReceiver, Receiver replyReceiver, ComplexReceiver replyTextMediaReceiver, DoubleImageReceiver previewReceiver, ImageReceiver contentReceiver, GifReceiver gifReceiver, ComplexReceiver complexReceiver) {
     final int viewWidth = view.getMeasuredWidth();
     final int viewHeight = view.getMeasuredHeight();
+    final float ayuDeletedAlpha = getAyuDeletedPresentationAlpha();
 
     final boolean useBubbles = useBubbles();
     final boolean useReactionBubbles = useReactionBubbles();
@@ -1983,6 +1996,21 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       }
     }
 
+    final int ayuDeletedOuterSaveCount;
+    if (ayuDeletedAlpha < 1f) {
+      ayuDeletedOuterSaveCount = Views.saveLayerAlpha(
+        c,
+        0,
+        0,
+        viewWidth,
+        viewHeight,
+        (int) (255 * ayuDeletedAlpha),
+        0
+      );
+    } else {
+      ayuDeletedOuterSaveCount = -1;
+    }
+
     if (useBubbles && !needViewGroup()) {
       drawBackground(view, c);
     }
@@ -2002,6 +2030,21 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     if (contentOffset != 0) {
       c.save();
       c.translate(contentOffset * (Lang.rtl() ? -1 : 1), 0);
+    }
+
+    final int ayuDeletedContentSaveCount;
+    if (ayuDeletedAlpha < 1f) {
+      ayuDeletedContentSaveCount = Views.saveLayerAlpha(
+        c,
+        0,
+        0,
+        viewWidth,
+        viewHeight,
+        (int) (255 * ayuDeletedAlpha),
+        0
+      );
+    } else {
+      ayuDeletedContentSaveCount = -1;
     }
 
     boolean hasBubble = useBubbles && useBubble();
@@ -2067,6 +2110,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       drawFooter(view, c);
     }
 
+    if (ayuDeletedContentSaveCount != -1) {
+      Views.restore(c, ayuDeletedContentSaveCount);
+    }
+
     // Header
     if ((flags & FLAG_HEADER_ENABLED) != 0) {
       // Avatar
@@ -2125,8 +2172,19 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       int top = getHeaderPadding() + xViewsOffset + Screen.dp(7f);
 
       // Time
+      float ayuDeletedMarkWidth = getAyuDeletedMarkWidth(true);
+      if (ayuDeletedMarkWidth > 0f) {
+        drawAyuDeletedMark(
+          c, pTimeLeft - ayuDeletedMarkWidth, pTicksTop - Screen.dp(2f),
+          Theme.getColor(ColorId.iconLight)
+        );
+      }
       if (needMetadata) {
-        c.drawText(time, pTimeLeft, xTimeTop + getHeaderPadding(), mTime(true));
+        TextPaint timePaint = mTime(true);
+        timePaint.setColor(ColorUtils.alphaColor(
+          getAyuDeletedPresentationAlpha(), Theme.getColor(ColorId.textLight)
+        ));
+        c.drawText(time, pTimeLeft, xTimeTop + getHeaderPadding(), timePaint);
       }
 
       int clockX = pClockLeft - Icons.getClockIconWidth() - Screen.dp(Icons.CLOCK_SHIFT_X);
@@ -2464,6 +2522,9 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     highlightUnreadReactionsIfNeeded();
     if (isHiddenFactor > 0f) {
       drawHiddenMessage(view, c, isHiddenFactor);
+    }
+    if (ayuDeletedOuterSaveCount != -1) {
+      Views.restore(c, ayuDeletedOuterSaveCount);
     }
   }
 
@@ -3402,6 +3463,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
 
     int totalMaxWidth = currentWidth - xContentLeft - Screen.dp(4f);
     int max = totalMaxWidth - timePaddingRight - pTimeWidth;
+    max -= Math.round(getAyuDeletedMarkWidth(true));
 
     if (shouldShowTicks()) {
       max -= Screen.dp(3f) + Icons.getSingleTickWidth() + Screen.dp(3f);
@@ -3974,7 +4036,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     }
 
     int innerWidth = computeBubbleTimePartWidth(false);
-    int startX;
+    float startX;
 
     final boolean isSending = isSending();
     final boolean isFailed = isFailed();
@@ -4003,7 +4065,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     int counterY = startY + Screen.dp(11.5f);
 
     if (reactionsDrawMode == REACTIONS_DRAW_MODE_FLAT) {
-      drawReactionsWithoutBubbles(c, startX, counterY);
+      drawReactionsWithoutBubbles(c, (int) startX, counterY);
       startX += reactionsCounterDrawable.getMinimumWidth() + Screen.dp(COUNTER_ADD_MARGIN) * messageReactions.getVisibility();
       reactionsCounter.draw(c, startX, counterY, Gravity.LEFT, 1f, view, iconColorId);
       startX += reactionsCounter.getScaledWidth(Screen.dp(5));
@@ -4057,8 +4119,20 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       startX += isTranslatedCounter.getScaledWidth(Screen.dp(COUNTER_ICON_MARGIN + COUNTER_ADD_MARGIN));
     }
 
+    float ayuDeletedMarkWidth = getAyuDeletedMarkWidth(false);
+    if (ayuDeletedMarkWidth > 0f) {
+      drawAyuDeletedMark(c, startX, startY + Screen.dp(3.5f), textColor);
+      startX += ayuDeletedMarkWidth;
+    }
+
     if (time != null) {
-      c.drawText(time, startX, startY + Screen.dp(15.5f), Paints.colorPaint(mTimeBubble(), textColor));
+      c.drawText(
+        time, startX, startY + Screen.dp(15.5f),
+        Paints.colorPaint(
+          mTimeBubble(),
+          ColorUtils.alphaColor(getAyuDeletedPresentationAlpha(), textColor)
+        )
+      );
       startX += pTimeWidth;
     }
 
@@ -4110,6 +4184,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
         width += isEdited.getScaledOrTargetWidth(Screen.dp(COUNTER_ICON_MARGIN), isTarget);
       }
     }
+    width += Math.round(getAyuDeletedMarkWidth(false));
     if (translationStyleMode() == Settings.TRANSLATE_MODE_INLINE) {
       width += isTranslatedCounter.getScaledOrTargetWidth(Screen.dp(COUNTER_ICON_MARGIN + COUNTER_ADD_MARGIN), isTarget);
     }
@@ -4806,6 +4881,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     if (!wouldCombineWith(message))
       return false;
     boolean local = (flags & FLAG_LAYOUT_BUILT) == 0;
+    boolean ayuChanged = addAyuDeleted(message.chatId, message.id);
     synchronized (this) {
       if (combinedMessages == null) {
         combinedMessages = new ArrayList<>();
@@ -4828,6 +4904,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       rebuildAndUpdateContent();
     }
     computeQuickButtons();
+    if (ayuChanged) {
+      resetAyuDeletedPresentationState();
+      buildTime();
+    }
     return true;
   }
 
@@ -4863,6 +4943,8 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   @UiThread
   public final int removeMessage (long messageId) {
     synchronized (this) {
+      boolean ayuChanged = ayuDeletedMessageIds != null &&
+        ayuDeletedMessageIds.remove(messageId);
       int index = indexOfMessageInternal(messageId);
       if (index >= 0) {
         TdApi.Message message = combinedMessages.remove(index);
@@ -4876,12 +4958,171 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
         onMessageCombinationRemoved(message, index);
         forceRemoveAnimation(messageId);
         updateInteractionInfo(true);
+        if (ayuChanged) buildTime();
         return REMOVE_COMBINATION;
       }
       if (index == MESSAGE_INDEX_SELF) {
+        if (ayuChanged) buildTime();
         return combinedMessages != null && !combinedMessages.isEmpty() ? REMOVE_NOTHING : REMOVE_COMPLETELY;
       }
+      if (ayuChanged) buildTime();
       return REMOVE_NOTHING;
+    }
+  }
+
+  public final boolean isAyuDeleted (long messageId) {
+    synchronized (this) {
+      return ayuDeletedMessageIds != null && ayuDeletedMessageIds.has(messageId);
+    }
+  }
+
+  public final boolean hasAyuDeletedMessages () {
+    synchronized (this) {
+      return ayuDeletedMessageIds != null && !ayuDeletedMessageIds.isEmpty();
+    }
+  }
+
+  private int getAyuDeletedTargetStyle () {
+    return hasAyuDeletedMessages() ?
+      Settings.instance().getFlatGramDeletedMarkStyle() :
+      Settings.FLATGRAM_DELETED_MARK_NOTHING;
+  }
+
+  private void resetAyuDeletedPresentationState () {
+    ayuDeletedPresentationFromStyle = ayuDeletedPresentationToStyle =
+      getAyuDeletedTargetStyle();
+    ayuDeletedPresentationFromTranslucent = ayuDeletedPresentationToTranslucent =
+      Settings.instance().flatGramTranslucentDeletedMessages();
+    ayuDeletedPresentationFactor = 1f;
+  }
+
+  private static float getAyuDeletedMarkWidth (int style, boolean plain) {
+    return style != Settings.FLATGRAM_DELETED_MARK_NOTHING ?
+      Icons.getAyuDeletedIconWidth() + Screen.dp(plain ? 4f : 3f) : 0f;
+  }
+
+  private float getAyuDeletedMarkWidth (boolean plain) {
+    if (!hasAyuDeletedMessages()) {
+      return 0f;
+    }
+    return MathUtils.fromTo(
+      getAyuDeletedMarkWidth(ayuDeletedPresentationFromStyle, plain),
+      getAyuDeletedMarkWidth(ayuDeletedPresentationToStyle, plain),
+      ayuDeletedPresentationFactor
+    );
+  }
+
+  private static float getAyuDeletedPresentationAlpha (boolean translucent) {
+    return translucent ? .75f : 1f;
+  }
+
+  private float getAyuDeletedPresentationAlpha () {
+    if (!hasAyuDeletedMessages()) {
+      return 1f;
+    }
+    return MathUtils.fromTo(
+      getAyuDeletedPresentationAlpha(ayuDeletedPresentationFromTranslucent),
+      getAyuDeletedPresentationAlpha(ayuDeletedPresentationToTranslucent),
+      ayuDeletedPresentationFactor
+    );
+  }
+
+  private void drawAyuDeletedMark (Canvas c, float x, float y, int color) {
+    if (!hasAyuDeletedMessages()) return;
+    if (ayuDeletedPresentationFromStyle == ayuDeletedPresentationToStyle) {
+      drawAyuDeletedMark(
+        c, ayuDeletedPresentationToStyle, x, y, color,
+        getAyuDeletedPresentationAlpha()
+      );
+    } else {
+      drawAyuDeletedMark(
+        c, ayuDeletedPresentationFromStyle, x, y, color,
+        getAyuDeletedPresentationAlpha(ayuDeletedPresentationFromTranslucent) *
+          (1f - ayuDeletedPresentationFactor)
+      );
+      drawAyuDeletedMark(
+        c, ayuDeletedPresentationToStyle, x, y, color,
+        getAyuDeletedPresentationAlpha(ayuDeletedPresentationToTranslucent) *
+          ayuDeletedPresentationFactor
+      );
+    }
+  }
+
+  private static void drawAyuDeletedMark (Canvas c, int style, float x, float y, int color, float alpha) {
+    if (style == Settings.FLATGRAM_DELETED_MARK_NOTHING || alpha <= 0f) return;
+    Drawable drawable = Icons.getAyuDeletedDrawable(style);
+    if (drawable != null) {
+      Drawables.draw(
+        c, drawable, x, y,
+        Paints.getPorterDuffPaint(ColorUtils.alphaColor(alpha, color))
+      );
+    }
+  }
+
+  public final boolean markAyuDeleted (long messageId) {
+    if (!addAyuDeleted(getChatId(), messageId)) return false;
+    resetAyuDeletedPresentationState();
+    buildTime();
+    computeQuickButtons();
+    invalidate();
+    return true;
+  }
+
+  public final boolean markAyuDeletedForPreview (long messageId) {
+    synchronized (this) {
+      if (ayuDeletedMessageIds == null) {
+        ayuDeletedMessageIds = new LongSet(1);
+      } else if (ayuDeletedMessageIds.has(messageId)) {
+        return false;
+      }
+      ayuDeletedMessageIds.add(messageId);
+    }
+    resetAyuDeletedPresentationState();
+    buildTime();
+    computeQuickButtons();
+    return true;
+  }
+
+  public final void refreshAyuDeletedPresentation () {
+    int style = getAyuDeletedTargetStyle();
+    boolean translucent = Settings.instance().flatGramTranslucentDeletedMessages();
+    boolean animate = hasAyuDeletedMessages() &&
+      (ayuDeletedPresentationToStyle != style ||
+        ayuDeletedPresentationToTranslucent != translucent) &&
+      needAnimateChanges();
+    int height = getHeight();
+    ayuDeletedPresentationFromStyle = ayuDeletedPresentationToStyle;
+    ayuDeletedPresentationFromTranslucent = ayuDeletedPresentationToTranslucent;
+    ayuDeletedPresentationToStyle = style;
+    ayuDeletedPresentationToTranslucent = translucent;
+    ayuDeletedPresentationFactor = animate ? 0f : 1f;
+    buildTime();
+    computeQuickButtons();
+    rebuildLayout();
+    if (height != getHeight()) {
+      requestLayout();
+    }
+    if (animate) {
+      if (ayuDeletedPresentationAnimator == null) {
+        ayuDeletedPresentationAnimator = new FactorAnimator(
+          ANIMATOR_AYU_DELETED_PRESENTATION, this,
+          AnimatorUtils.DECELERATE_INTERPOLATOR, 160l, 0f
+        );
+      } else {
+        ayuDeletedPresentationAnimator.forceFactor(0f);
+      }
+      ayuDeletedPresentationAnimator.animateTo(1f);
+    }
+    invalidate();
+  }
+
+  private boolean addAyuDeleted (long chatId, long messageId) {
+    if (!tdlib.ayu().isDeleted(chatId, messageId)) return false;
+    synchronized (this) {
+      if (ayuDeletedMessageIds == null) {
+        ayuDeletedMessageIds = new LongSet(1);
+      }
+      return ayuDeletedMessageIds.add(messageId);
     }
   }
 
@@ -5092,6 +5333,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public final boolean canBeReported () {
+    if (hasAyuDeletedMessages()) return false;
     if (isSponsoredMessage()) {
       return sponsoredMessage.canBeReported;
     } else {
@@ -5119,6 +5361,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public final boolean canGetAddedReactions () {
+    if (hasAyuDeletedMessages()) return false;
     synchronized (this) {
       if (combinedMessages != null) {
         for (TdApi.Message message : combinedMessages) {
@@ -5139,21 +5382,26 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public boolean canBePinned () {
-    return !isNotSent() && allowInteraction() && !isSponsoredMessage();
+    return !hasAyuDeletedMessages() && !isNotSent() && allowInteraction() &&
+      !isSponsoredMessage();
   }
 
   public boolean canEditText () {
+    if (hasAyuDeletedMessages()) return false;
     TdApi.MessageProperties properties = lastMessageProperties();
     return properties.canBeEdited && TD.canEditText(msg.content) && allowInteraction() && messagesController().canWriteMessages();
   }
 
   public boolean canBeForwarded () {
+    if (hasAyuDeletedMessages()) return false;
     TdApi.MessageProperties properties = lastMessageProperties();
     return properties.canBeForwarded && !isEventLog();
   }
 
   public boolean canBeReacted () {
-    return !isSponsoredMessage() && !isEventLog() && !Td.isEmpty(messageAvailableReactions) && (tdlib.hasPremium() || Td.hasNonPremiumReactions(messageAvailableReactions));
+    return !hasAyuDeletedMessages() && !isSponsoredMessage() && !isEventLog() &&
+      !Td.isEmpty(messageAvailableReactions) &&
+      (tdlib.hasPremium() || Td.hasNonPremiumReactions(messageAvailableReactions));
   }
 
   public boolean canBeSaved () {
@@ -5724,7 +5972,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public boolean canReplyTo () {
-    return TD.canReplyTo(msg) && allowInteraction();
+    return !hasAyuDeletedMessages() && TD.canReplyTo(msg) && allowInteraction();
   }
 
   public boolean isScheduled () {
@@ -6693,6 +6941,20 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
           }
           break;
         }
+        case ANIMATOR_AYU_DELETED_PRESENTATION: {
+          if (ayuDeletedPresentationFactor != factor) {
+            int height = getHeight();
+            ayuDeletedPresentationFactor = factor;
+            if (BitwiseUtils.hasFlag(flags, FLAG_LAYOUT_BUILT)) {
+              layoutInfo();
+              if (height != getHeight()) {
+                requestLayout();
+              }
+            }
+            invalidate();
+          }
+          break;
+        }
       }
     }
   }
@@ -6886,6 +7148,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   private static final int ANIMATOR_READY_RIGHT = -5;
   private static final int ANIMATOR_QUICK_VERTICAL_LEFT = -6;
   private static final int ANIMATOR_QUICK_VERTICAL_RIGHT = -7;
+  private static final int ANIMATOR_AYU_DELETED_PRESENTATION = -8;
 
   public void vibrate () {
     UI.hapticVibrate(findCurrentView(), true);
@@ -8582,6 +8845,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public final void loadAvailableReactions (Runnable after) {
+    if (hasAyuDeletedMessages()) {
+      runOnUiThreadOptional(after);
+      return;
+    }
     tdlib.send(new TdApi.GetMessageAvailableReactions(msg.chatId, getSmallestId(), 25), (availableReactions, error) -> {
       if (error != null) {
         runOnUiThreadOptional(after);
@@ -8842,7 +9109,9 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   private boolean canSendReaction (TdApi.ReactionType reactionType) {
-    return canBeReacted() && !tdlib.isSelfChat(msg.chatId) && Td.isAvailable(messageAvailableReactions, reactionType);
+    return !hasAyuDeletedMessages() && canBeReacted() &&
+      !tdlib.isSelfChat(msg.chatId) &&
+      Td.isAvailable(messageAvailableReactions, reactionType);
   }
 
   private void computeQuickButtons () {

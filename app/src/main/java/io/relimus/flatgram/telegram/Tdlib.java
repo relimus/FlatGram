@@ -54,6 +54,7 @@ import io.relimus.flatgram.Log;
 import io.relimus.flatgram.R;
 import io.relimus.flatgram.TDLib;
 import io.relimus.flatgram.U;
+import io.relimus.flatgram.ayu.AyuMessageStore;
 import io.relimus.flatgram.component.attach.MediaToReplacePickerManager;
 import io.relimus.flatgram.component.chat.TdlibSingleUnreadReactionsManager;
 import io.relimus.flatgram.component.dialogs.ChatView;
@@ -448,6 +449,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   private final TdlibSingleton<TdApi.Stickers> genericReactionEffects;
   private final TdlibListeners listeners;
   private final TdlibFilesManager filesManager;
+  private final AyuMessageStore ayuMessages;
   private final TdlibStatusManager statusManager;
   private final TdlibContactManager contactManager;
   private final TdlibQuickAckManager quickAckManager;
@@ -571,6 +573,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
       ms = SystemClock.uptimeMillis();
     }
     this.filesManager = new TdlibFilesManager(this);
+    this.ayuMessages = new AyuMessageStore(this);
     if (needMeasure) {
       Log.v("INITIALIZATION: Tdlib.filesManager -> %dms", SystemClock.uptimeMillis() - ms);
       ms = SystemClock.uptimeMillis();
@@ -1075,7 +1078,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   private boolean eraseTdlibDatabaseImpl () {
     File dbFile;
 
-    boolean success = true;
+    boolean success = ayuMessages.closeAndDelete();
     dbFile = new File(parameters.databaseDirectory, "db.sqlite-wal");
     success = (!dbFile.exists() || dbFile.delete()) && success;
     dbFile = new File(parameters.databaseDirectory, "db.sqlite-shm");
@@ -2353,6 +2356,10 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   public TdlibFilesManager files () {
     return filesManager;
+  }
+
+  public AyuMessageStore ayu () {
+    return ayuMessages;
   }
 
   public TdlibSettingsManager settings () {
@@ -5296,19 +5303,19 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   public void deleteChat (long chatId, boolean revoke, @Nullable Runnable after) {
     switch (ChatId.getType(chatId)) {
       case TdApi.ChatTypePrivate.CONSTRUCTOR: {
-        client().send(new TdApi.DeleteChatHistory(chatId, true, revoke), okHandler(after));
+        deleteChatHistory(chatId, true, revoke, after);
         break;
       }
       case TdApi.ChatTypeSecret.CONSTRUCTOR: {
         TdApi.SecretChat secretChat = chatToSecretChat(chatId);
         if (secretChat == null || secretChat.state.getConstructor() == TdApi.SecretChatStateClosed.CONSTRUCTOR) {
-          client().send(new TdApi.DeleteChatHistory(chatId, true, revoke), silentHandler(after));
+          deleteChatHistory(chatId, true, revoke, after);
         } else {
           client().send(new TdApi.CloseSecretChat(ChatId.toSecretChatId(chatId)), result -> {
             if (result.getConstructor() == TdApi.Error.CONSTRUCTOR) {
               Log.e("Cannot close secret chat, secretChatId:%d, error: %s", ChatId.toSecretChatId(chatId), TD.toErrorString(result));
             }
-            client().send(new TdApi.DeleteChatHistory(chatId, true, revoke), silentHandler(after));
+            deleteChatHistory(chatId, true, revoke, after);
           });
         }
         break;
@@ -5317,11 +5324,11 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
       case TdApi.ChatTypeSupergroup.CONSTRUCTOR: {
         TdApi.ChatMemberStatus status = chatStatus(chatId);
         if (!TD.isMember(status, false)) {
-          client().send(new TdApi.DeleteChatHistory(chatId, true, revoke), okHandler(after));
+          deleteChatHistory(chatId, true, revoke, after);
         } else {
           client().send(new TdApi.SetChatMemberStatus(chatId, mySender(), new TdApi.ChatMemberStatusLeft()), result -> {
             if (ChatId.isBasicGroup(chatId)) {
-              client().send(new TdApi.DeleteChatHistory(chatId, true, revoke), okHandler(after));
+              deleteChatHistory(chatId, true, revoke, after);
             }
           });
         }
@@ -5727,11 +5734,38 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   }
 
   public void deleteMessages (long chatId, long[] messageIds, boolean revoke) {
-    send(new TdApi.DeleteMessages(chatId, messageIds, revoke), typedOkHandler());
+    long[] ids = Arrays.copyOf(messageIds, messageIds.length);
+    ayuMessages.markUserDelete(chatId, ids);
+    send(new TdApi.DeleteMessages(chatId, ids, revoke), (ok, error) -> {
+      if (error != null) {
+        ayuMessages.cancelUserDelete(chatId, ids);
+        UI.showError(error);
+      }
+    });
   }
 
   public void deleteMessagesIfOk (final long chatId, final long[] messageIds, boolean revoke) {
-    send(new TdApi.DeleteMessages(chatId, messageIds, revoke), typedOkHandler());
+    deleteMessages(chatId, messageIds, revoke);
+  }
+
+  public void deleteChatHistory (
+    long chatId,
+    boolean removeFromChatList,
+    boolean revoke,
+    @Nullable Runnable after
+  ) {
+    ayuMessages.markUserClearChat(chatId);
+    send(
+      new TdApi.DeleteChatHistory(chatId, removeFromChatList, revoke),
+      (ok, error) -> {
+        if (error != null) {
+          ayuMessages.cancelUserClearChat(chatId);
+          UI.showError(error);
+        } else {
+          ayuMessages.deleteChat(chatId, after);
+        }
+      }
+    );
   }
 
   public void readMessages (long chatId, long[] messageIds, TdApi.MessageSource source) {
@@ -7474,6 +7508,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   }
 
   private void updateNewMessage (TdApi.UpdateNewMessage update, boolean isUpdate) {
+    ayuMessages.captureMessage(update.message);
     if (update.message.sendingState instanceof TdApi.MessageSendingStatePending && update.message.content.getConstructor() != TdApi.MessageChatSetMessageAutoDeleteTime.CONSTRUCTOR) {
       addRemoveSendingMessage(update.message.chatId, update.message.id, true);
       if (isUpdate)
@@ -7496,6 +7531,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   }
 
   private void updateMessageSendSucceeded (TdApi.UpdateMessageSendSucceeded update) {
+    ayuMessages.captureMessage(update.message);
     synchronized (dataLock) {
       Settings.instance().updateScrollMessageId(accountId, update.message.chatId, update.oldMessageId, update.message.id);
     }
@@ -7537,6 +7573,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   @TdlibThread
   private void updateMessageContent (TdApi.UpdateMessageContent update) {
+    ayuMessages.updateMessageContent(update.chatId, update.messageId, update.newContent);
     final TdApi.Chat chat;
     synchronized (dataLock) {
       chat = chats.get(update.chatId);
@@ -7567,6 +7604,9 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   @TdlibThread
   private void updateMessageEdited (TdApi.UpdateMessageEdited update) {
+    ayuMessages.updateMessageEdited(
+      update.chatId, update.messageId, update.editDate, update.replyMarkup
+    );
     listeners.updateMessageEdited(update);
     // TODO notifications per-edit?
   }
@@ -7656,9 +7696,15 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
     Arrays.sort(update.messageIds);
 
-    listeners.updateMessagesDeleted(update);
-
-    context.global().notifyUpdateMessagesDeleted(this, update);
+    ayuMessages.processDeleteUpdate(update, result -> {
+      if (result.removedIds.length > 0) {
+        listeners.updateMessagesDeleted(update.chatId, result.removedIds);
+      }
+      if (result.retainedIds.length > 0) {
+        listeners.updateMessagesMarkedDeleted(update.chatId, result.retainedIds);
+      }
+      context.global().notifyUpdateMessagesDeleted(this, update);
+    });
   }
 
   // Updates: SAVED MESSAGES

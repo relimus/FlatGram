@@ -29,6 +29,8 @@ import org.json.JSONObject;
 import io.relimus.flatgram.BuildConfig;
 import io.relimus.flatgram.Log;
 import io.relimus.flatgram.R;
+import io.relimus.flatgram.ayu.AyuHistoryMerger;
+import io.relimus.flatgram.ayu.AyuMessageStore;
 import io.relimus.flatgram.config.Config;
 import io.relimus.flatgram.core.Background;
 import io.relimus.flatgram.core.Lang;
@@ -525,9 +527,32 @@ public class MessagesLoader implements Client.ResultHandler {
           lastHandler = null;
         }
 
-        processMessages(currentContextId,
-          messages, knownTotalCount, nextSearchOffset, nextSearchFromMessageId,
-          needFindUnread && object.getConstructor() == TdApi.Messages.CONSTRUCTOR, missingAlbums);
+        final boolean findUnread =
+          needFindUnread && object.getConstructor() == TdApi.Messages.CONSTRUCTOR;
+        final List<List<TdApi.Message>> albums = missingAlbums;
+        if (specialMode == SPECIAL_MODE_NONE && !hasSearchFilter() &&
+            object.getConstructor() == TdApi.Messages.CONSTRUCTOR) {
+          int direction = loadingMode == MODE_MORE_TOP ?
+            AyuHistoryMerger.DIRECTION_OLDER :
+            loadingMode == MODE_MORE_BOTTOM ? AyuHistoryMerger.DIRECTION_NEWER :
+              AyuHistoryMerger.DIRECTION_INITIAL;
+          long fromMessageId = lastFromMessageId != null ?
+            lastFromMessageId.getMessageId() : 0;
+          tdlib.ayu().processHistory(
+            getChatId(), messages, direction, fromMessageId, lastLimit,
+            messageThread != null ? messageThread.getMessageTopicId() : topicId,
+            result -> processMessages(
+              currentContextId, result, knownTotalCount, nextSearchOffset,
+              nextSearchFromMessageId, findUnread, albums
+            )
+          );
+        } else {
+          processMessages(
+            currentContextId, AyuMessageStore.HistoryResult.serverOnly(messages),
+            knownTotalCount, nextSearchOffset, nextSearchFromMessageId,
+            findUnread, albums
+          );
+        }
       }
     };
     synchronized (lock) {
@@ -593,9 +618,40 @@ public class MessagesLoader implements Client.ResultHandler {
       TdApi.Message[] messagesArray = new TdApi.Message[messages.size()];
       messages.toArray(messagesArray);
       processMessages(
-        contextId, messagesArray,
+        contextId, AyuMessageStore.HistoryResult.serverOnly(messagesArray),
         0, null, 0,
         true, null
+      );
+    });
+  }
+
+  public void loadAyuDeletedPreviewMessages () {
+    reuse();
+
+    canLoadTop = false;
+    canLoadBottom = false;
+    isLoading = true;
+    loadingMode = MODE_INITIAL;
+
+    Background.instance().post(() -> {
+      LongSparseArray<TdApi.User> participants = new LongSparseArray<>();
+      participants.put(0, TD.newFakeUser(0, Lang.getString(R.string.FlatGramAyuSettings), null));
+      manager.setDemoParticipants(participants, false);
+
+      String text = Lang.getString(R.string.FlatGramDeletedMessagesPreviewMessage);
+      TdApi.Message msg = new TdApi.Message();
+      msg.id = 1000;
+      msg.date = (int) (System.currentTimeMillis() / 1000l - 60l);
+      msg.isOutgoing = false;
+      msg.senderId = new TdApi.MessageSenderUser(0);
+      msg.content = new TdApi.MessageText(
+        new TdApi.FormattedText(text, Td.findEntities(text)), null, null
+      );
+
+      processMessages(
+        contextId, AyuMessageStore.HistoryResult.serverOnly(new TdApi.Message[] {msg}),
+        0, null, 0,
+        true, null, true
       );
     });
   }
@@ -1305,9 +1361,27 @@ public class MessagesLoader implements Client.ResultHandler {
     stepsCount = 0;
   }
 
-  private void processMessages (final long currentContextId, TdApi.Message[] messages, int knownTotalMessageCount,
+  private void processMessages (final long currentContextId,
+                                AyuMessageStore.HistoryResult historyResult,
+                                int knownTotalMessageCount,
                                 String nextSearchOffset, long nextSearchFromMessageId,
                                 boolean needFindUnread, @Nullable List<List<TdApi.Message>> missingAlbums) {
+    processMessages(
+      currentContextId, historyResult, knownTotalMessageCount,
+      nextSearchOffset, nextSearchFromMessageId,
+      needFindUnread, missingAlbums, false
+    );
+  }
+
+  private void processMessages (final long currentContextId,
+                                AyuMessageStore.HistoryResult historyResult,
+                                int knownTotalMessageCount,
+                                String nextSearchOffset, long nextSearchFromMessageId,
+                                boolean needFindUnread, @Nullable List<List<TdApi.Message>> missingAlbums,
+                                boolean markAyuDeletedForPreview) {
+    if (contextId != currentContextId) return;
+    TdApi.Message[] messages = historyResult.messages;
+    final int serverMessageCount = historyResult.serverMessageCount;
     if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
       Log.v(Log.TAG_MESSAGES_LOADER, "Processing %d messages...", messages.length);
     }
@@ -1423,6 +1497,9 @@ public class MessagesLoader implements Client.ResultHandler {
         }
         cur = TGMessage.valueOf(manager, messages[j], chat, messageThread, administrator);
         if (cur != null) {
+          if (markAyuDeletedForPreview) {
+            cur.markAyuDeletedForPreview(messages[j].id);
+          }
           if (!containsScrollingMessage && scrollMessageId != null && scrollMessageId.compareTo(messages[j].chatId, messages[j].id)) {
             containsScrollingMessage = true;
           }
@@ -1583,9 +1660,18 @@ public class MessagesLoader implements Client.ResultHandler {
           }
         }
 
-        final boolean canLoadMore = loadingLocal || (totalCount != 0 && getChatId() != 0);
-        canLoadTop = specialMode != SPECIAL_MODE_SCHEDULED && (scrollMessageId == null || !scrollMessageId.isHistoryStart()) && canLoadMore && !isLoadingFromThreadStart(scrollMessageId);
-        canLoadBottom = specialMode != SPECIAL_MODE_SCHEDULED && (scrollMessageId == null || !scrollMessageId.isHistoryEnd()) && canLoadMore && suitableMessage != null && !isEndReached(new MessageId(suitableMessage.getChatId(), suitableMessage.getId()));
+        final boolean canLoadMore =
+          loadingLocal || (serverMessageCount != 0 && getChatId() != 0);
+        final boolean hasArchivedTopPage = !loadingLocal &&
+          serverMessageCount == 0 && lastLimit > 0 && messages.length >= lastLimit;
+        canLoadTop = specialMode != SPECIAL_MODE_SCHEDULED &&
+          (scrollMessageId == null || !scrollMessageId.isHistoryStart()) &&
+          (canLoadMore || hasArchivedTopPage) &&
+          !isLoadingFromThreadStart(scrollMessageId);
+        canLoadBottom = specialMode != SPECIAL_MODE_SCHEDULED &&
+          (scrollMessageId == null || !scrollMessageId.isHistoryEnd()) &&
+          canLoadMore && suitableMessage != null &&
+          !isEndReached(new MessageId(chatId, historyResult.serverNewestMessageId));
 
         if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
           Log.i(Log.TAG_MESSAGES_LOADER, "Received initial chunk, startTop:%s startBottom:%s canLoadTop:%b canLoadBottom:%b", getStartTop(), getStartBottom(), canLoadTop, canLoadBottom);
@@ -1593,24 +1679,26 @@ public class MessagesLoader implements Client.ResultHandler {
         break;
       }
       case MODE_MORE_BOTTOM: {
-        if (totalCount == 0 && !loadingLocal) {
-          canLoadBottom = false;
-          if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
+        if (serverMessageCount == 0 && !loadingLocal) {
+          canLoadBottom = lastLimit > 0 && messages.length >= lastLimit;
+          if (!canLoadBottom && Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
             Log.i(Log.TAG_MESSAGES_LOADER, "Bottom end reached.");
           }
-          UI.post(() -> {
-            synchronized (lock) {
-              isLoading = false;
-            }
-            manager.onBottomEndLoaded();
-            manager.onBottomEndChecked();
-          });
-          return;
+          if (totalCount == 0) {
+            UI.post(() -> {
+              synchronized (lock) {
+                isLoading = false;
+              }
+              manager.onBottomEndLoaded();
+              manager.onBottomEndChecked();
+            });
+            return;
+          }
         }
 
-        if (messages.length > 0) {
+        if (serverMessageCount > 0) {
           long lastMessageId = messageThread != null ? messageThread.getLastMessageId() : chat.lastMessage != null ? chat.lastMessage.id : 0;
-          if (lastMessageId != 0 && lastMessageId == messages[0].id) {
+          if (lastMessageId != 0 && lastMessageId == historyResult.serverNewestMessageId) {
             UI.post(manager::onBottomEndChecked);
           }
         }
@@ -1621,21 +1709,23 @@ public class MessagesLoader implements Client.ResultHandler {
         break;
       }
       case MODE_MORE_TOP: {
-        if (totalCount == 0 && !loadingLocal) {
-          canLoadTop = false;
-          if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
+        if (serverMessageCount == 0 && !loadingLocal) {
+          canLoadTop = lastLimit > 0 && messages.length >= lastLimit;
+          if (!canLoadTop && Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
             Log.i(Log.TAG_MESSAGES_LOADER, "Top end reached.");
           }
-          UI.post(() -> {
-            synchronized (lock) {
-              isLoading = false;
-            }
-            manager.onTopEndLoaded();
-            if (!canLoadBottom) {
-              manager.onBottomEndChecked();
-            }
-          });
-          return;
+          if (totalCount == 0) {
+            UI.post(() -> {
+              synchronized (lock) {
+                isLoading = false;
+              }
+              manager.onTopEndLoaded();
+              if (!canLoadBottom) {
+                manager.onBottomEndChecked();
+              }
+            });
+            return;
+          }
         }
 
         if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
@@ -1674,7 +1764,7 @@ public class MessagesLoader implements Client.ResultHandler {
       }
 
       if (loadingLocal) {
-        if (items.isEmpty()) {
+        if (serverMessageCount == 0) {
           manager.onNetworkRequestSent();
           synchronized (lock) {
             isLoading = false;
@@ -1685,7 +1775,9 @@ public class MessagesLoader implements Client.ResultHandler {
       }
 
       final int chunkSize = scrollItemIndexFinal == -1 ? CHUNK_SIZE_SMALL : CHUNK_SIZE_SEARCH;
-      boolean willTryAgain = (loadingMode == MODE_INITIAL || loadingMode == MODE_REPEAT_INITIAL) && items.size() < chunkSize && items.size() > 0;
+      boolean willTryAgain =
+        (loadingMode == MODE_INITIAL || loadingMode == MODE_REPEAT_INITIAL) &&
+          serverMessageCount < chunkSize && serverMessageCount > 0;
       manager.displayMessages(items, loadingMode, scrollPosition, scrollItemView, scrollMessageId, scrollHighlightMode, willTryAgain && loadingLocal, canLoadTop);
 
       synchronized (lock) {
@@ -1695,7 +1787,7 @@ public class MessagesLoader implements Client.ResultHandler {
       boolean ignoreEndCheck = false;
 
       if (loadingMode == MODE_INITIAL || loadingMode == MODE_REPEAT_INITIAL) {
-        int count = items.size();
+        int count = serverMessageCount;
         if (count > 0 && count < chunkSize) {
           if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
             Log.i(Log.TAG_MESSAGES_LOADER, "Loading more messages, because we received too few messages");

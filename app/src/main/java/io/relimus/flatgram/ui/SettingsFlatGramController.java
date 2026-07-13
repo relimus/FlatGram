@@ -44,6 +44,9 @@ public class SettingsFlatGramController extends RecyclerViewController<Void> imp
       new ListItem(ListItem.TYPE_SHADOW_TOP),
       new ListItem(ListItem.TYPE_SETTING, R.id.btn_flatGramInterfaceSettings,
         R.drawable.baseline_extension_24, R.string.FlatGramInterfaceSettings),
+      new ListItem(ListItem.TYPE_SEPARATOR_FULL),
+      new ListItem(ListItem.TYPE_SETTING, R.id.btn_flatGramAyuSettings,
+        R.drawable.baseline_visibility_24, R.string.FlatGramAyuSettings),
       new ListItem(ListItem.TYPE_SHADOW_BOTTOM),
       new ListItem(ListItem.TYPE_BUILD_NO, R.id.btn_build, 0,
         Lang.getAppBuildAndVersion(tdlib), false)
@@ -55,6 +58,8 @@ public class SettingsFlatGramController extends RecyclerViewController<Void> imp
   public void onClick (View v) {
     if (v.getId() == R.id.btn_flatGramInterfaceSettings) {
       navigateTo(new SettingsFlatGramInterfaceController(context, tdlib));
+    } else if (v.getId() == R.id.btn_flatGramAyuSettings) {
+      navigateTo(new SettingsFlatGramAyuController(context, tdlib));
     }
   }
 }

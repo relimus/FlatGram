@@ -24,6 +24,7 @@ import androidx.collection.LongSparseArray;
 
 import io.relimus.flatgram.R;
 import io.relimus.flatgram.theme.ColorId;
+import io.relimus.flatgram.unsorted.Settings;
 
 import me.vkryl.core.BitwiseUtils;
 
@@ -34,6 +35,9 @@ public class Icons {
     chatVerifyDrawable = null;
     secureDrawable = null;
     secureSmallDrawable = null;
+    ayuDeletedTrashDrawable = null;
+    ayuDeletedCrossDrawable = null;
+    ayuDeletedEyeCrossedDrawable = null;
     if (sparseDrawables != null)
       sparseDrawables.clear();
     livePinIcon = null;
@@ -59,6 +63,39 @@ public class Icons {
 
   public static int getEditedIconWidth () {
     return Screen.dp(12f);
+  }
+
+  private static Drawable ayuDeletedTrashDrawable, ayuDeletedCrossDrawable, ayuDeletedEyeCrossedDrawable;
+  public static Drawable getAyuDeletedDrawable () {
+    return getAyuDeletedDrawable(Settings.instance().getFlatGramDeletedMarkStyle());
+  }
+
+  public static Drawable getAyuDeletedDrawable (int style) {
+    switch (style) {
+      case Settings.FLATGRAM_DELETED_MARK_TRASH: {
+        if (ayuDeletedTrashDrawable == null) {
+          ayuDeletedTrashDrawable = Drawables.get(UI.getResources(), R.drawable.baseline_delete_14);
+        }
+        return ayuDeletedTrashDrawable;
+      }
+      case Settings.FLATGRAM_DELETED_MARK_CROSS: {
+        if (ayuDeletedCrossDrawable == null) {
+          ayuDeletedCrossDrawable = Drawables.get(UI.getResources(), R.drawable.baseline_close_14);
+        }
+        return ayuDeletedCrossDrawable;
+      }
+      case Settings.FLATGRAM_DELETED_MARK_EYE_CROSSED: {
+        if (ayuDeletedEyeCrossedDrawable == null) {
+          ayuDeletedEyeCrossedDrawable = Drawables.get(UI.getResources(), R.drawable.baseline_visibility_off_14);
+        }
+        return ayuDeletedEyeCrossedDrawable;
+      }
+    }
+    return null;
+  }
+
+  public static int getAyuDeletedIconWidth () {
+    return Screen.dp(14f);
   }
 
   private static Drawable secureDrawable;

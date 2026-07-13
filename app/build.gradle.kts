@@ -59,6 +59,7 @@ android {
     applicationId = config.applicationId
     targetSdk = config.targetSdkVersion
     multiDexEnabled = true
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     buildConfigString("PROJECT_NAME", config.applicationName)
     buildConfigBool("SHARED_STL", Config.SHARED_STL)
@@ -515,6 +516,11 @@ gradle.projectsEvaluated {
 }
 
 dependencies {
+  testImplementation(libs.junit4)
+  androidTestImplementation(libs.androidx.test.core)
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.ext.junit)
+
   legacyImplementation(libs.androidx.multidex)
   implementation(project(":extension:${config.extension}"))
   // TDLib: https://github.com/tdlib/td/blob/master/CHANGELOG.md

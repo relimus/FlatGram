@@ -84,6 +84,7 @@ import io.relimus.flatgram.ui.SettingsBugController;
 import io.relimus.flatgram.ui.SettingsCacheController;
 import io.relimus.flatgram.ui.SettingsController;
 import io.relimus.flatgram.ui.SettingsDataController;
+import io.relimus.flatgram.ui.SettingsFlatGramAyuController;
 import io.relimus.flatgram.ui.SettingsFlatGramController;
 import io.relimus.flatgram.ui.SettingsFlatGramInterfaceController;
 import io.relimus.flatgram.ui.SettingsFoldersController;
@@ -1280,6 +1281,8 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
       restore = new SettingsFlatGramController(context, tdlib);
     } else if (id == R.id.controller_flatGramInterfaceSettings) {
       restore = new SettingsFlatGramInterfaceController(context, tdlib);
+    } else if (id == R.id.controller_flatGramAyuSettings) {
+      restore = new SettingsFlatGramAyuController(context, tdlib);
     } else if (id == R.id.controller_editChatFolders) {
       restore = new EditChatFolderController(context, tdlib);
     } else if (id == R.id.controller_editChatFolderInviteLink) {

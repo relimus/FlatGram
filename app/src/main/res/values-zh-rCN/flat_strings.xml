@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="FlatGramInterfaceSettings">界面</string>
+  <string name="FlatGramAyuSettings">Ayu 时刻</string>
   <string name="FlatGramSettingsTagline">静待希望开花</string>
   <string name="FlatGramInterfaceSettingsEmpty">FlatGram 界面设置</string>
+  <string name="FlatGramSaveDeletedMessages">保存已删除消息</string>
+  <string name="FlatGramDeletedMessage">已删除</string>
+  <string name="FlatGramDeletedMessagesPreview">渲染示例图</string>
+  <string name="FlatGramDeletedMessagesPreviewMessage">这条已删除消息由 Ayu 保留。</string>
+  <string name="FlatGramTranslucentDeletedMessages">半透明已删除消息</string>
+  <string name="FlatGramDeletedMarkStyle">已删除标识</string>
+  <string name="FlatGramDeletedMarkNothing">无</string>
+  <string name="FlatGramDeletedMarkTrash">垃圾桶</string>
+  <string name="FlatGramDeletedMarkCross">叉号</string>
+  <string name="FlatGramDeletedMarkEyeCrossed">划线眼睛</string>
   <string name="FlatGramHomeTopBar">顶栏样式</string>
   <string name="FlatGramHomeTopBarDefault">原版</string>
   <string name="FlatGramHomeTopBarFlatGram">FlatGram 样式</string>

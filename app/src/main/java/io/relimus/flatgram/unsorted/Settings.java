@@ -237,6 +237,9 @@ public class Settings {
   private static final String KEY_CHAT_FONT_SIZE = "settings_font_size";
   private static final String KEY_CHAT_LIST_MODE = "settings_chat_list_mode";
   private static final String KEY_FLATGRAM_HOME_TOP_BAR_MODE = "flatgram_home_top_bar_mode";
+  private static final String KEY_FLATGRAM_SAVE_DELETED_MESSAGES = "flatgram_save_deleted_messages";
+  private static final String KEY_FLATGRAM_DELETED_MARK_STYLE = "flatgram_deleted_mark_style";
+  private static final String KEY_FLATGRAM_TRANSLUCENT_DELETED_MESSAGES = "flatgram_translucent_deleted_messages";
   private static final String KEY_CHAT_TRANSLATE_MODE = "settings_chat_translate_mode";
   private static final String KEY_CHAT_DO_NOT_TRANSLATE_MODE = "settings_chat_do_not_translate_mode";
   private static final String KEY_CHAT_DO_NOT_TRANSLATE_LIST = "settings_chat_do_not_translate_list";
@@ -1304,6 +1307,58 @@ public class Settings {
 
   public boolean useFlatGramHomeTopBar () {
     return getFlatGramHomeTopBarMode() == FLATGRAM_HOME_TOP_BAR_MODE_FLATGRAM;
+  }
+
+  public boolean saveDeletedMessages () {
+    return pmc.getBoolean(KEY_FLATGRAM_SAVE_DELETED_MESSAGES, false);
+  }
+
+  public void setSaveDeletedMessages (boolean enabled) {
+    if (enabled) {
+      pmc.putBoolean(KEY_FLATGRAM_SAVE_DELETED_MESSAGES, true);
+    } else {
+      pmc.remove(KEY_FLATGRAM_SAVE_DELETED_MESSAGES);
+    }
+  }
+
+  public static final int FLATGRAM_DELETED_MARK_NOTHING = 0;
+  public static final int FLATGRAM_DELETED_MARK_TRASH = 1;
+  public static final int FLATGRAM_DELETED_MARK_CROSS = 2;
+  public static final int FLATGRAM_DELETED_MARK_EYE_CROSSED = 3;
+
+  public int getFlatGramDeletedMarkStyle () {
+    int style = pmc.getInt(KEY_FLATGRAM_DELETED_MARK_STYLE, FLATGRAM_DELETED_MARK_TRASH);
+    if (style < FLATGRAM_DELETED_MARK_NOTHING || style > FLATGRAM_DELETED_MARK_EYE_CROSSED) {
+      style = FLATGRAM_DELETED_MARK_TRASH;
+    }
+    return style;
+  }
+
+  public void setFlatGramDeletedMarkStyle (int style) {
+    if (style < FLATGRAM_DELETED_MARK_NOTHING || style > FLATGRAM_DELETED_MARK_EYE_CROSSED) {
+      style = FLATGRAM_DELETED_MARK_TRASH;
+    }
+    if (style == FLATGRAM_DELETED_MARK_TRASH) {
+      pmc.remove(KEY_FLATGRAM_DELETED_MARK_STYLE);
+    } else {
+      pmc.putInt(KEY_FLATGRAM_DELETED_MARK_STYLE, style);
+    }
+  }
+
+  public boolean showFlatGramDeletedMark () {
+    return getFlatGramDeletedMarkStyle() != FLATGRAM_DELETED_MARK_NOTHING;
+  }
+
+  public boolean flatGramTranslucentDeletedMessages () {
+    return pmc.getBoolean(KEY_FLATGRAM_TRANSLUCENT_DELETED_MESSAGES, true);
+  }
+
+  public void setFlatGramTranslucentDeletedMessages (boolean enabled) {
+    if (enabled) {
+      pmc.remove(KEY_FLATGRAM_TRANSLUCENT_DELETED_MESSAGES);
+    } else {
+      pmc.putBoolean(KEY_FLATGRAM_TRANSLUCENT_DELETED_MESSAGES, false);
+    }
   }
 
 

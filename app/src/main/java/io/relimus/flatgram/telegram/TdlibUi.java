@@ -4803,7 +4803,7 @@ public class TdlibUi extends Handler {
               switch (result.getConstructor()) {
                 case TdApi.Ok.CONSTRUCTOR: {
                   if (ChatId.isBasicGroup(chatId)) {
-                    tdlib.send(new TdApi.DeleteChatHistory(chatId, true, false), tdlib.typedOkHandler());
+                    tdlib.deleteChatHistory(chatId, true, false, null);
                   }
                   break;
                 }
@@ -4922,8 +4922,7 @@ public class TdlibUi extends Handler {
         })
         .setIntDelegate((id, result) -> {
           boolean clearHistory = result.get(R.id.btn_clearChatHistory) == R.id.btn_clearChatHistory;
-          tdlib.send(new TdApi.DeleteChatHistory(chatId, false, clearHistory), tdlib.typedOkHandler());
-          U.run(after);
+          tdlib.deleteChatHistory(chatId, false, clearHistory, after);
         }));
     } else {
       final boolean revoke = !tdlib.canClearHistoryOnlyForSelf(chatId);
@@ -4954,8 +4953,7 @@ public class TdlibUi extends Handler {
             if (needSecondaryConfirm && !isSecondaryConfirm) {
               showClearHistoryConfirm(context, chatId, after, true);
             } else {
-              tdlib.send(new TdApi.DeleteChatHistory(chatId, false, revoke), tdlib.typedOkHandler());
-              U.run(after);
+              tdlib.deleteChatHistory(chatId, false, revoke, after);
             }
           }
           return true;
@@ -5091,12 +5089,9 @@ public class TdlibUi extends Handler {
               .setIntDelegate((id, result) -> {
                 boolean clearHistory = result.get(R.id.btn_clearChatHistory) == R.id.btn_clearChatHistory;
                 if (clearHistory) {
-                  tdlib.client().send(new TdApi.DeleteChatHistory(chatId, true, true), object -> {
-                    if (object.getConstructor() == TdApi.Error.CONSTRUCTOR) {
-                      Log.e("Cannot clear secret chat history, secretChatId:%d, error: %s", ChatId.toSecretChatId(chatId), TD.toErrorString(object));
-                    }
-                    deleter.runWithBool(true);
-                  });
+                  tdlib.deleteChatHistory(
+                    chatId, true, true, () -> deleter.runWithBool(true)
+                  );
                 } else {
                   deleter.runWithBool(false);
                 }

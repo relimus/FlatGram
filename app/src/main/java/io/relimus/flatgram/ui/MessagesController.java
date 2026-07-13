@@ -267,6 +267,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import me.vkryl.android.AnimatorUtils;
@@ -628,7 +629,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void updateMessagesViewInset () {
-    int inset = bottomWrap != null && bottomWrap.getVisibility() == View.VISIBLE ? 0 : extraBottomInset;
+    int inset = previewMode != PREVIEW_MODE_AYU_DELETED &&
+      (bottomWrap == null || bottomWrap.getVisibility() != View.VISIBLE) ? extraBottomInset : 0;
     int appliedInset = Views.getAppliedBottomInset(messagesView);
     if (inset != appliedInset) {
       manager.maintainScrollPositionAndOffset(() -> {
@@ -713,7 +715,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
     MessagesLayoutManager messagesManager;
 
-    messagesManager = new MessagesLayoutManager(context, RecyclerView.VERTICAL, true);
+    messagesManager = new MessagesLayoutManager(
+      context, RecyclerView.VERTICAL, previewMode != PREVIEW_MODE_AYU_DELETED
+    );
     messagesManager.setManager(manager);
 
     messagesView = (MessagesRecyclerView) Views.inflate(context(), R.layout.recycler_messages, contentView);
@@ -1467,6 +1471,10 @@ public class MessagesController extends ViewController<MessagesController.Argume
     contentView.addView(goToNextFoundMessageButtonBadge);
     contentView.addView(goToPrevFoundMessageButtonBadge);
 
+    if (previewMode == PREVIEW_MODE_AYU_DELETED) {
+      setupEmbeddedAyuDeletedPreview();
+    }
+
     if (previewMode == PREVIEW_MODE_NONE) {
       contentView.addView(emojiButton);
       contentView.addView(attachButtons);
@@ -1548,6 +1556,57 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
 
     return contentView;
+  }
+
+  private void setupEmbeddedAyuDeletedPreview () {
+    bottomWrap.setVisibility(View.GONE);
+    bottomSpace.setVisibility(View.GONE);
+    bottomShadowView.setVisibility(View.GONE);
+    topBar.setVisibility(View.GONE);
+    bottomBar.setVisibility(View.GONE);
+    reactionsButtonWrap.setVisibility(View.GONE);
+    mentionButtonWrap.setVisibility(View.GONE);
+    scrollToBottomButtonWrap.setVisibility(View.GONE);
+    goToNextFoundMessageButtonBadge.setVisibility(View.GONE);
+    goToPrevFoundMessageButtonBadge.setVisibility(View.GONE);
+
+    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(
+      ViewGroup.LayoutParams.MATCH_PARENT,
+      ViewGroup.LayoutParams.MATCH_PARENT
+    );
+    messagesView.setLayoutParams(params);
+    messagesView.setNestedScrollingEnabled(false);
+    messagesView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+    messagesView.setVerticalScrollBarEnabled(false);
+  }
+
+  private @Nullable Runnable ayuDeletedPreviewLayoutListener;
+
+  void setAyuDeletedPreviewLayoutListener (@Nullable Runnable listener) {
+    ayuDeletedPreviewLayoutListener = listener;
+  }
+
+  int getAyuDeletedPreviewContentHeight () {
+    if (previewMode != PREVIEW_MODE_AYU_DELETED || manager == null ||
+      manager.getAdapter() == null) {
+      return 0;
+    }
+    TGMessage message = manager.getAdapter().getBottomMessage();
+    return message != null ? message.getHeight() : 0;
+  }
+
+  public void onAyuDeletedPreviewLoaded () {
+    if (previewMode == PREVIEW_MODE_AYU_DELETED && ayuDeletedPreviewLayoutListener != null) {
+      ayuDeletedPreviewLayoutListener.run();
+    }
+  }
+
+  void reloadAyuDeletedPreview () {
+    if (previewMode == PREVIEW_MODE_AYU_DELETED) {
+      if (!manager.refreshAyuDeletedPreview()) {
+        manager.loadAyuDeletedPreview();
+      }
+    }
   }
 
   private SliderView fontSliderView;
@@ -2315,6 +2374,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public static final int PREVIEW_MODE_EVENT_LOG = 3;
   public static final int PREVIEW_MODE_SEARCH = 4;
   public static final int PREVIEW_MODE_WALLPAPER_OBJECT = 5;
+  public static final int PREVIEW_MODE_AYU_DELETED = 6;
 
   @Override
   public boolean saveInstanceState (Bundle outState, String keyPrefix) {
@@ -2808,6 +2868,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
         case PREVIEW_MODE_SEARCH:
           manager.openSearch(chat, previewSearchQuery, previewSearchSender, previewSearchFilter);
           updateBottomBar(false);
+          break;
+        case PREVIEW_MODE_AYU_DELETED:
+          manager.loadAyuDeletedPreview();
           break;
         default:
           manager.loadPreview();
@@ -3425,6 +3488,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
           return R.id.controller_eventLog;
         case PREVIEW_MODE_SEARCH:
           return R.id.controller_searchPreview;
+        case PREVIEW_MODE_AYU_DELETED:
+          return R.id.controller_flatGramAyuDeletedMessagesPreview;
       }
       return 0;
     }
@@ -3537,6 +3602,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
         return Lang.getString(R.string.ChatBackgroundPreview);
       case PREVIEW_MODE_FONT_SIZE:
         return Lang.getString(R.string.TextSize);
+      case PREVIEW_MODE_AYU_DELETED:
+        return Lang.getString(R.string.FlatGramDeletedMessagesPreview);
       default:
         return Lang.getString(isSelfChat() ? R.string.SavedMessages : R.string.ChatPreview);
     }
@@ -3644,6 +3711,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   private MessageWithProperties getSingleSelectedMessage () {
     if (selectedMessageIds != null && selectedMessageIds.size() == 1) {
+      if (isSelectedAyuMessage(0)) return null;
       long messageId = selectedMessageIds.keyAt(0);
       TGMessage m = selectedMessageIds.valueAt(0);
       TdApi.Message message = m.getMessage(messageId);
@@ -3863,18 +3931,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         }
         return;
       }
-      if (selectedMessageIds != null && selectedMessageIds.size() > 0) {
-        final int size = selectedMessageIds.size();
-        final MessageWithProperties[] messages = new MessageWithProperties[size];
-        for (int i = 0; i < size; i++) {
-          long messageId = selectedMessageIds.keyAt(i);
-          TGMessage m = selectedMessageIds.valueAt(i);
-          TdApi.Message message = m.getMessage(messageId);
-          TdApi.MessageProperties properties = m.lastMessageProperties(messageId);
-          messages[i] = new MessageWithProperties(message, properties);
-        }
-        tdlib.ui().showDeleteOptions(this, messages, () -> finishSelectMode(-1));
-      }
+      deleteSelectedMessages();
     } else if (id == R.id.menu_btn_retry) {
       if (selectedMessageIds != null && selectedMessageIds.size() > 0) {
         int count = 0;
@@ -3913,6 +3970,70 @@ public class MessagesController extends ViewController<MessagesController.Argume
         messageIds[i] = selectedMessageIds.keyAt(i);
       }
       tdlib.resendMessages(getChatId(), messageIds);
+    }
+  }
+
+  private void deleteSelectedMessages () {
+    if (selectedMessageIds == null || selectedMessageIds.size() == 0) return;
+    LongSparseArray<LongList> ayuMessageIds = new LongSparseArray<> ();
+    List<MessageWithProperties> messages = new ArrayList<> ();
+    int ayuCount = 0;
+    for (int i = 0; i < selectedMessageIds.size(); i++) {
+      long messageId = selectedMessageIds.keyAt(i);
+      TGMessage container = selectedMessageIds.valueAt(i);
+      if (container.isAyuDeleted(messageId)) {
+        long chatId = container.getChatId();
+        LongList ids = ayuMessageIds.get(chatId);
+        if (ids == null) {
+          ids = new LongList(1);
+          ayuMessageIds.put(chatId, ids);
+        }
+        ids.append(messageId);
+        ayuCount++;
+      } else {
+        TdApi.Message message = container.getMessage(messageId);
+        messages.add(new MessageWithProperties(
+          message, container.lastMessageProperties(messageId)
+        ));
+      }
+    }
+
+    Runnable deleteAyuMessages = () -> deleteSelectedAyuMessages(ayuMessageIds);
+    if (!messages.isEmpty()) {
+      tdlib.ui().showDeleteOptions(
+        this, messages.toArray(new MessageWithProperties[0]), deleteAyuMessages
+      );
+    } else if (ayuCount > 0) {
+      int count = ayuCount;
+      showOptions(
+        Lang.pluralBold(R.string.QDeleteXMessages, count),
+        new int[] {R.id.btn_delete, R.id.btn_cancel},
+        new String[] {Lang.getString(R.string.Delete), Lang.getString(R.string.Cancel)},
+        new int[] {OptionColor.RED, OptionColor.NORMAL},
+        new int[] {R.drawable.baseline_delete_24, R.drawable.baseline_cancel_24},
+        (itemView, optionId) -> {
+          if (optionId == R.id.btn_delete) deleteAyuMessages.run();
+          return true;
+        }
+      );
+    }
+  }
+
+  private void deleteSelectedAyuMessages (LongSparseArray<LongList> messages) {
+    if (messages.size() == 0) {
+      finishSelectMode(-1);
+      return;
+    }
+    AtomicInteger remaining = new AtomicInteger(messages.size());
+    for (int i = 0; i < messages.size(); i++) {
+      long chatId = messages.keyAt(i);
+      long[] messageIds = messages.valueAt(i).get();
+      tdlib.ayu().deleteArchived(chatId, messageIds, () -> {
+        manager.updateMessagesDeleted(chatId, messageIds);
+        if (remaining.decrementAndGet() == 0) {
+          finishSelectMode(-1);
+        }
+      });
     }
   }
 
@@ -3980,6 +4101,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private boolean promptDraftPrefillOnFocus;
+  private boolean ayuSettingInitialized;
+  private boolean saveDeletedMessagesOnLastFocus;
 
   public boolean fillDraft (TdApi.FormattedText fillDraft, boolean checkCurrentDraft) {
     if (Td.isEmpty(fillDraft)) {
@@ -4009,6 +4132,13 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Override
   public void onFocus () {
     super.onFocus();
+    boolean saveDeletedMessages = Settings.instance().saveDeletedMessages();
+    if (ayuSettingInitialized &&
+        saveDeletedMessagesOnLastFocus != saveDeletedMessages) {
+      reloadData();
+    }
+    ayuSettingInitialized = true;
+    saveDeletedMessagesOnLastFocus = saveDeletedMessages;
     if (promptDraftPrefillOnFocus) {
       promptDraftPrefillOnFocus = false;
       fillDraft(this.fillDraft, true);
@@ -4969,6 +5099,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   private @Nullable LongSparseArray<TGMessage> selectedMessageIds;
 
+  private boolean isSelectedAyuMessage (int index) {
+    return selectedMessageIds != null &&
+      selectedMessageIds.valueAt(index).isAyuDeleted(selectedMessageIds.keyAt(index));
+  }
+
   private @Nullable MessageWithProperties[] selectedMessagesToArray () {
     if (selectedMessageIds == null) {
       return null;
@@ -5083,8 +5218,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
       return;
     }
     if (selectedMessageIds.size() == 1) {
-      MessageWithProperties message = getSingleSelectedMessage();
-      TdApi.FormattedText formattedText = message != null ? Td.textOrCaption(message.message.content) : null;
+      TdApi.Message message = selectedMessageIds.valueAt(0).getMessage(
+        selectedMessageIds.keyAt(0)
+      );
+      TdApi.FormattedText formattedText =
+        message != null ? Td.textOrCaption(message.content) : null;
       if (formattedText != null) {
         UI.copyText(TD.toCharSequence(formattedText), R.string.CopiedText);
       }
@@ -5164,8 +5302,10 @@ public class MessagesController extends ViewController<MessagesController.Argume
       return false;
     }
     if (selectedMessageIds.size() == 1) {
-      MessageWithProperties m = getSingleSelectedMessage();
-      return m.message.canBeSaved && TD.canCopyText(m.message);
+      TdApi.Message message = selectedMessageIds.valueAt(0).getMessage(
+        selectedMessageIds.keyAt(0)
+      );
+      return message != null && message.canBeSaved && TD.canCopyText(message);
     }
     for (int i = 0; i < selectedMessageIds.size(); i++) {
       TdApi.Message message = selectedMessageIds.valueAt(i).getMessage(selectedMessageIds.keyAt(i));
@@ -5184,6 +5324,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (selectedMessageIds != null) {
       final int size = selectedMessageIds.size();
       for (int i = 0; i < size; i++) {
+        if (isSelectedAyuMessage(i)) continue;
         long messageId = selectedMessageIds.keyAt(i);
         TGMessage m = selectedMessageIds.valueAt(i);
         TdApi.Message msg = m.getMessage(messageId);
@@ -5217,6 +5358,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       int size = selectedMessageIds.size();
       if (size > 1) {
         for (int i = 0; i < size; i++) {
+          if (isSelectedAyuMessage(i)) return false;
           if (!selectedMessageIds.valueAt(i).canBeReported()) {
             return false;
           }
@@ -5238,6 +5380,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private boolean canSendSelectedMessages () {
     if (pagerScrollPosition == 0 && selectedMessageIds != null && selectedMessageIds.size() > 0) {
       for (int i = 0; i < selectedMessageIds.size(); i++) {
+        if (isSelectedAyuMessage(i)) return false;
         TGMessage msg = selectedMessageIds.valueAt(i);
         TdApi.Message message = msg.getMessage(selectedMessageIds.keyAt(i));
         if (message == null || message.schedulingState == null)
@@ -5257,6 +5400,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       boolean hasMergedMessages = false;
       int canClearCache = 0;
       for (int i = 0; i < selectedMessageIds.size(); i++) {
+        if (isSelectedAyuMessage(i)) return false;
         TGMessage msg = selectedMessageIds.valueAt(i);
         TdApi.Message message = msg.getMessage(selectedMessageIds.keyAt(i));
         if (TD.canDeleteFiles(tdlib(), message)) {
@@ -5270,6 +5414,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private boolean canUnpinSelectedMessages () {
+    if (selectedMessageIds != null) {
+      for (int i = 0; i < selectedMessageIds.size(); i++) {
+        if (isSelectedAyuMessage(i)) return false;
+      }
+    }
     return arePinnedMessages() && canPinAnyMessage(false);
   }
 
@@ -5291,6 +5440,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (selectedMessageIds != null) {
       final int size = selectedMessageIds.size();
       for (int i = 0; i < size; i++) {
+        if (isSelectedAyuMessage(i)) return false;
         long messageId = selectedMessageIds.keyAt(i);
         TGMessage m = selectedMessageIds.valueAt(i);
         TdApi.Message msg = m.getMessage(messageId);
@@ -6000,6 +6150,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private final BoolAnimator bottomBarVisible = new BoolAnimator(ANIMATOR_BOTTOM_BUTTON, this, AnimatorUtils.DECELERATE_INTERPOLATOR, 180l);
 
   public int getBottomOffset () {
+    if (previewMode == PREVIEW_MODE_AYU_DELETED) {
+      return 0;
+    }
     return (int) (getReplyOffset() + getAttachedFilesOffset());
   }
 
@@ -9072,6 +9225,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public int getTopOffset () {
+    if (previewMode == PREVIEW_MODE_AYU_DELETED) {
+      return 0;
+    }
     int total = topBar.getTotalVisualHeight();
     total *= (1f - getSearchTransformFactor());
     return total;

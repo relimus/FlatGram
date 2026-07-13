@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="FlatGramInterfaceSettings">Interface</string>
+  <string name="FlatGramAyuSettings">Ayu Moments</string>
   <string name="FlatGramSettingsTagline">Wait for hope to bloom.</string>
   <string name="FlatGramInterfaceSettingsEmpty">FlatGram interface settings will be added here.</string>
+  <string name="FlatGramSaveDeletedMessages">Save deleted messages</string>
+  <string name="FlatGramDeletedMessage">Deleted</string>
+  <string name="FlatGramDeletedMessagesPreview">Render preview</string>
+  <string name="FlatGramDeletedMessagesPreviewMessage">This deleted message is kept by Ayu.</string>
+  <string name="FlatGramTranslucentDeletedMessages">Semi-transparent deleted messages</string>
+  <string name="FlatGramDeletedMarkStyle">Deleted mark</string>
+  <string name="FlatGramDeletedMarkNothing">None</string>
+  <string name="FlatGramDeletedMarkTrash">Trash bin</string>
+  <string name="FlatGramDeletedMarkCross">Cross</string>
+  <string name="FlatGramDeletedMarkEyeCrossed">Eye crossed</string>
   <string name="FlatGramHomeTopBar">Topbar style</string>
   <string name="FlatGramHomeTopBarDefault">Original</string>
   <string name="FlatGramHomeTopBarFlatGram">FlatGram style</string>

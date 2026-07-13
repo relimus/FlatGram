@@ -2,9 +2,20 @@
 <resources>
   <item type="id" name="controller_flatGramSettings" />
   <item type="id" name="controller_flatGramInterfaceSettings" />
+  <item type="id" name="controller_flatGramAyuSettings" />
+  <item type="id" name="controller_flatGramAyuDeletedMessagesPreview" />
 
   <item type="id" name="btn_flatGramSettings" />
   <item type="id" name="btn_flatGramInterfaceSettings" />
+  <item type="id" name="btn_flatGramAyuSettings" />
+  <item type="id" name="btn_flatGramSaveDeletedMessages" />
+  <item type="id" name="btn_flatGramDeletedMessagesPreview" />
+  <item type="id" name="btn_flatGramTranslucentDeletedMessages" />
+  <item type="id" name="btn_flatGramDeletedMarkStyle" />
+  <item type="id" name="btn_flatGramDeletedMarkNothing" />
+  <item type="id" name="btn_flatGramDeletedMarkTrash" />
+  <item type="id" name="btn_flatGramDeletedMarkCross" />
+  <item type="id" name="btn_flatGramDeletedMarkEyeCrossed" />
   <item type="id" name="btn_flatGramHomeTopBar" />
   <item type="id" name="btn_flatGramHomeTopBarDefault" />
   <item type="id" name="btn_flatGramHomeTopBarFlatGram" />

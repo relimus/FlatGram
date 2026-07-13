@@ -887,8 +887,18 @@ public class TdlibListeners {
   // updateDeleteMessages
 
   void updateMessagesDeleted (TdApi.UpdateDeleteMessages update) {
-    runMessageUpdate(update.chatId, listener ->
-      listener.onMessagesDeleted(update.chatId, update.messageIds)
+    updateMessagesDeleted(update.chatId, update.messageIds);
+  }
+
+  void updateMessagesDeleted (long chatId, long[] messageIds) {
+    runMessageUpdate(chatId, listener ->
+      listener.onMessagesDeleted(chatId, messageIds)
+    );
+  }
+
+  void updateMessagesMarkedDeleted (long chatId, long[] messageIds) {
+    runMessageUpdate(chatId, listener ->
+      listener.onMessagesMarkedDeleted(chatId, messageIds)
     );
   }
 

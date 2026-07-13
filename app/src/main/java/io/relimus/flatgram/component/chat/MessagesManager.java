@@ -800,6 +800,27 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
     loadPreviewMessages();
   }
 
+  public void loadAyuDeletedPreview () {
+    if (adapter != null) {
+      adapter.reset(null);
+    }
+    loader.loadAyuDeletedPreviewMessages();
+  }
+
+  public boolean refreshAyuDeletedPreview () {
+    if (adapter == null || adapter.getMessageCount() == 0) {
+      return false;
+    }
+    for (int i = 0; i < adapter.getMessageCount(); i++) {
+      TGMessage message = adapter.getMessage(i);
+      if (message != null) {
+        message.refreshAyuDeletedPresentation();
+      }
+    }
+    controller.onAyuDeletedPreviewLoaded();
+    return true;
+  }
+
   public void resetByMessage (MessageId highlightMessageId, int highlightMode) {
     clearHeaderMessage();
     this.highlightMessageId = highlightMessageId;
@@ -1256,6 +1277,7 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
           onChatAwaitFinish();
         }
         viewMessages(false);
+        controller.onAyuDeletedPreviewLoaded();
         break;
       }
       case MessagesLoader.MODE_MORE_TOP: {
@@ -2357,6 +2379,21 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
         messageThread.updateMessagesDeleted(messageIds, removedCount, removedUnreadCount);
       }
     }
+  }
+
+  public void updateMessagesMarkedDeleted (long chatId, long[] messageIds) {
+    if (loader.getChatId() != chatId) return;
+    controller.removeReply(chatId, messageIds);
+    for (long messageId : messageIds) {
+      int index = adapter.indexOfMessageContainer(messageId);
+      if (index != -1 && adapter.getItem(index).markAyuDeleted(messageId)) {
+        invalidateViewAt(index);
+      }
+    }
+    if (controller.getSelectedMessageCount() > 0) {
+      controller.updateSelectButtons();
+    }
+    controller.onMessagesDeleted(chatId, messageIds);
   }
 
   public void updateChatReadOutbox (long lastReadOutboxMessageId) {
@@ -3614,6 +3651,11 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
         updateMessagesDeleted(chatId, messageIds);
       }
     });
+  }
+
+  @Override
+  public void onMessagesMarkedDeleted (final long chatId, final long[] messageIds) {
+    tdlib.ui().post(() -> updateMessagesMarkedDeleted(chatId, messageIds));
   }
 
   @Override

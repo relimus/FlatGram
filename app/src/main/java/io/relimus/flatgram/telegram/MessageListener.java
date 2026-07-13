@@ -33,5 +33,6 @@ public interface MessageListener {
   default void onMessageUnreadPollVotesChanged (long chatId, long messageId, boolean hasUnreadPollVote, int unreadPollVoteCount) { }
   default void onMessageUnreadReactionsChanged (long chatId, long messageId, @Nullable TdApi.UnreadReaction[] unreadReactions, int unreadReactionCount) { }
   default void onMessagesDeleted (long chatId, long[] messageIds) { }
+  default void onMessagesMarkedDeleted (long chatId, long[] messageIds) { }
   default void onMessageLiveLocationViewed (long chatId, long messageId) { }
 }
